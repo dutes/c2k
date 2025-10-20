@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">C25K Custom Coach</string>
+    <string name="hint_run_seconds">Run interval (seconds)</string>
+    <string name="hint_walk_seconds">Walk interval (seconds)</string>
+    <string name="hint_total_minutes">Total workout (minutes)</string>
+    <string name="hint_cycle_count">Cycle count (optional)</string>
+    <string name="helper_total_minutes">Leave blank if using cycle count</string>
+    <string name="helper_cycle_count">Leave blank to use total minutes</string>
+    <string name="label_include_warmup">Include warm-up walk (5 min)</string>
+    <string name="label_include_cooldown">Include cool-down walk (5 min)</string>
+    <string name="action_start">Start workout</string>
+    <string name="action_stop">Stop workout</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="status_running">Workout running</string>
+    <string name="status_stopped">Service stopped</string>
+    <string name="error_positive_number">Please enter a positive number</string>
+    <string name="error_minutes_or_cycles">Provide total minutes or cycle count</string>
+    <string name="error_fix_fields">Please correct the highlighted fields</string>
+    <string name="notification_title">C25K Custom Coach</string>
+    <string name="notification_channel_name">Workout progress</string>
+    <string name="notification_preparing">Preparing your workout</string>
+    <string name="notification_complete">Workout complete!</string>
+    <string name="notification_content_format">%1$s · %2$d sec left</string>
+    <string name="notification_content_paused_format">%1$s · %2$d sec left (paused)</string>
+    <string name="segment_warmup_title">Warm-up</string>
+    <string name="segment_warmup_announcement">Warm-up walk for 5 minutes</string>
+    <string name="segment_run_title">Run</string>
+    <string name="segment_run_announcement">Run for %1$d seconds</string>
+    <string name="segment_walk_title">Walk</string>
+    <string name="segment_walk_announcement">Walk for %1$d seconds</string>
+    <string name="segment_cooldown_title">Cool-down</string>
+    <string name="segment_cooldown_announcement">Cool-down walk for 5 minutes</string>
+</resources>
