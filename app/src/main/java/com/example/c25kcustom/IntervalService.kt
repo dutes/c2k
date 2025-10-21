@@ -43,6 +43,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     private var countdown: CountDownTimer? = null
     private var remainingMillis: Long = 0L
     private var isPaused = false
+    private var totalCycles: Int = 0
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var audioManager: AudioManager? = null
@@ -138,6 +139,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             includeWarmup = includeWarmup,
             includeCooldown = includeCooldown
         )
+        totalCycles = segments.count { it.type == SegmentType.RUN }
         currentIndex = -1
         isPaused = false
         remainingMillis = 0L
@@ -158,6 +160,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         pendingStopAfterSpeech = false
         isPaused = false
         tts?.stop()
+        sendWorkoutStoppedBroadcast()
         finalizeService(removeNotification = true)
     }
 
@@ -166,6 +169,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         countdown?.cancel()
         isPaused = true
         updateNotification()
+        broadcastProgress()
     }
 
     private fun resumeIntervals() {
@@ -177,6 +181,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         }
         startSegmentTimer(remainingMillis)
         updateNotification()
+        broadcastProgress()
     }
 
     private fun startNextSegment() {
@@ -195,6 +200,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         speak(segment.announcement)
         startSegmentTimer(remainingMillis)
         updateNotification()
+        broadcastProgress()
     }
 
     private fun startSegmentTimer(durationMillis: Long) {
@@ -203,6 +209,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         if (durationMillis <= 0L) {
             remainingMillis = 0L
             updateNotification()
+            broadcastProgress()
             startNextSegment()
             return
         }
@@ -211,11 +218,13 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             override fun onTick(millisUntilFinished: Long) {
                 remainingMillis = millisUntilFinished
                 updateNotification()
+                broadcastProgress()
             }
 
             override fun onFinish() {
                 remainingMillis = 0
                 updateNotification()
+                broadcastProgress()
                 startNextSegment()
             }
         }.start()
@@ -233,11 +242,62 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             showActions = false
         )
         notificationManager.notify(NOTIFICATION_ID, completedNotification)
+        sendWorkoutFinishedBroadcast()
         if (spoke) {
             pendingStopAfterSpeech = true
         } else {
             finalizeService(removeNotification = false)
         }
+    }
+
+    private fun broadcastProgress() {
+        val segment = segments.getOrNull(currentIndex)
+        val remainingSeconds = if (segment != null) {
+            val millis = remainingMillis.coerceAtLeast(0L)
+            val seconds = if (isPaused) {
+                (millis / 1000L).toInt()
+            } else {
+                ((millis + 999) / 1000L).toInt()
+            }
+            seconds.coerceIn(0, segment.durationSeconds)
+        } else {
+            0
+        }
+        val elapsedSeconds = if (segment != null) {
+            (segment.durationSeconds - remainingSeconds).coerceIn(0, segment.durationSeconds)
+        } else {
+            0
+        }
+        val intent = Intent(ACTION_PROGRESS_UPDATE)
+            .setPackage(packageName)
+            .putExtra(EXTRA_INTERVAL_TITLE, segment?.title)
+            .putExtra(EXTRA_INTERVAL_ELAPSED_SECONDS, elapsedSeconds)
+            .putExtra(EXTRA_INTERVAL_REMAINING_SECONDS, remainingSeconds)
+            .putExtra(EXTRA_CYCLE_NUMBER, currentCycleNumber())
+            .putExtra(EXTRA_TOTAL_CYCLES, totalCycles)
+            .putExtra(EXTRA_IS_PAUSED, isPaused)
+        sendBroadcast(intent)
+    }
+
+    private fun currentCycleNumber(): Int {
+        if (segments.isEmpty() || currentIndex < 0) return 0
+        var cycles = 0
+        for (i in 0..currentIndex.coerceAtMost(segments.lastIndex)) {
+            if (segments[i].type == SegmentType.RUN) {
+                cycles++
+            }
+        }
+        return cycles
+    }
+
+    private fun sendWorkoutFinishedBroadcast() {
+        val intent = Intent(ACTION_WORKOUT_FINISHED).setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun sendWorkoutStoppedBroadcast() {
+        val intent = Intent(ACTION_WORKOUT_STOPPED).setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     private fun buildSegments(
@@ -529,6 +589,9 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val ACTION_PAUSE = "com.example.c25kcustom.action.PAUSE"
         const val ACTION_RESUME = "com.example.c25kcustom.action.RESUME"
         const val ACTION_STOP = "com.example.c25kcustom.action.STOP"
+        const val ACTION_PROGRESS_UPDATE = "com.example.c25kcustom.action.PROGRESS_UPDATE"
+        const val ACTION_WORKOUT_FINISHED = "com.example.c25kcustom.action.WORKOUT_FINISHED"
+        const val ACTION_WORKOUT_STOPPED = "com.example.c25kcustom.action.WORKOUT_STOPPED"
 
         const val EXTRA_RUN_SECONDS = "extra_run_seconds"
         const val EXTRA_WALK_SECONDS = "extra_walk_seconds"
@@ -536,6 +599,12 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val EXTRA_CYCLE_COUNT = "extra_cycle_count"
         const val EXTRA_INCLUDE_WARMUP = "extra_include_warmup"
         const val EXTRA_INCLUDE_COOLDOWN = "extra_include_cooldown"
+        const val EXTRA_INTERVAL_TITLE = "extra_interval_title"
+        const val EXTRA_INTERVAL_ELAPSED_SECONDS = "extra_interval_elapsed_seconds"
+        const val EXTRA_INTERVAL_REMAINING_SECONDS = "extra_interval_remaining_seconds"
+        const val EXTRA_CYCLE_NUMBER = "extra_cycle_number"
+        const val EXTRA_TOTAL_CYCLES = "extra_total_cycles"
+        const val EXTRA_IS_PAUSED = "extra_is_paused"
 
         private const val CHANNEL_ID = "c25k_intervals"
         private const val NOTIFICATION_ID = 1001
