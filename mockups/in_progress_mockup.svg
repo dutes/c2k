@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#F5F5F5"/>
+  <rect x="60" y="60" width="960" height="220" rx="32" fill="#6750A4"/>
+  <text x="120" y="150" font-family="Arial" font-size="64" fill="#FFFFFF">Workout in progress</text>
+  <text x="120" y="210" font-family="Arial" font-size="44" fill="#FFFFFF">Playlist: Morning Run Mix</text>
+
+  <rect x="60" y="340" width="960" height="460" rx="40" fill="#FFFFFF" stroke="#E0E0E0"/>
+  <text x="120" y="420" font-family="Arial" font-size="48" fill="#202124">Current cycle</text>
+  <text x="120" y="520" font-family="Arial" font-size="96" fill="#6750A4">Cycle 3 of 8</text>
+  <text x="120" y="600" font-family="Arial" font-size="48" fill="#202124">Run interval</text>
+
+  <text x="120" y="700" font-family="Arial" font-size="40" fill="#5F6368">Elapsed</text>
+  <text x="120" y="780" font-family="Arial" font-size="84" fill="#202124">00:45</text>
+  <text x="620" y="700" font-family="Arial" font-size="40" fill="#5F6368">Remaining</text>
+  <text x="620" y="780" font-family="Arial" font-size="84" fill="#202124">01:15</text>
+
+  <g transform="translate(0, 900)">
+    <rect x="120" y="0" width="240" height="180" rx="90" fill="#E8DEF8"/>
+    <text x="180" y="110" font-family="Arial" font-size="48" fill="#6750A4">Prev</text>
+    <rect x="420" y="0" width="240" height="180" rx="90" fill="#E8DEF8"/>
+    <text x="480" y="110" font-family="Arial" font-size="48" fill="#6750A4">Pause</text>
+    <rect x="720" y="0" width="240" height="180" rx="90" fill="#E8DEF8"/>
+    <text x="790" y="110" font-family="Arial" font-size="48" fill="#6750A4">Next</text>
+  </g>
+
+  <rect x="60" y="1200" width="960" height="170" rx="36" fill="#6750A4"/>
+  <text x="380" y="1310" font-family="Arial" font-size="60" fill="#FFFFFF">Pause workout</text>
+
+  <rect x="60" y="1400" width="960" height="170" rx="36" fill="#FFFFFF" stroke="#6750A4" stroke-width="6"/>
+  <text x="400" y="1510" font-family="Arial" font-size="60" fill="#6750A4">Stop workout</text>
+</svg>
