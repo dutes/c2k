@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioManager
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
@@ -23,7 +22,6 @@ class MainActivity : AppCompatActivity() {
     private var receiverRegistered = false
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
-    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     private val progressReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent) {
@@ -31,7 +29,6 @@ class MainActivity : AppCompatActivity() {
                 IntervalService.ACTION_PROGRESS_UPDATE -> handleProgressUpdate(intent)
                 IntervalService.ACTION_WORKOUT_FINISHED -> handleWorkoutFinished()
                 IntervalService.ACTION_WORKOUT_STOPPED -> handleWorkoutStopped()
-                AudioManager.ACTION_HDMI_AUDIO_PLUG -> updateMusicPlayPauseButton()
             }
         }
     }
@@ -58,7 +55,6 @@ class MainActivity : AppCompatActivity() {
                 addAction(IntervalService.ACTION_PROGRESS_UPDATE)
                 addAction(IntervalService.ACTION_WORKOUT_FINISHED)
                 addAction(IntervalService.ACTION_WORKOUT_STOPPED)
-                addAction(AudioManager.ACTION_HDMI_AUDIO_PLUG)
             }
             ContextCompat.registerReceiver(
                 this,
@@ -68,7 +64,6 @@ class MainActivity : AppCompatActivity() {
             )
             receiverRegistered = true
         }
-        updateMusicPlayPauseButton()
     }
 
     override fun onStop() {
@@ -97,12 +92,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.pauseResumeButton.setOnClickListener { toggleWorkoutPause() }
         binding.musicPreviousButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_PREVIOUS) }
-        binding.musicPlayPauseButton.setOnClickListener {
-            sendMusicControl(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-            // It can take a moment for the system to update the isMusicActive state,
-            // so we optimistically update the UI.
-            binding.musicPlayPauseButton.postDelayed({ updateMusicPlayPauseButton() }, 200)
-        }
+        binding.musicPlayPauseButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }
         binding.musicNextButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_NEXT) }
     }
 
@@ -118,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.toast_install_youtube_music, Toast.LENGTH_SHORT).show()
         }
     }
-
+    
     private fun validateInputs(): Boolean {
         var valid = true
 
@@ -245,9 +235,6 @@ class MainActivity : AppCompatActivity() {
         if (binding.stateSwitcher.displayedChild != target) {
             binding.stateSwitcher.displayedChild = target
         }
-        if (state == UiState.IN_PROGRESS) {
-            updateMusicPlayPauseButton()
-        }
     }
 
     private fun updatePauseButton() {
@@ -258,17 +245,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateMusicPlayPauseButton() {
-        val isPlaying = audioManager.isMusicActive
-        val icon = if (isPlaying) {
-            android.R.drawable.ic_media_pause
-        } else {
-            android.R.drawable.ic_media_play
-        }
-        binding.musicPlayPauseButton.setIconResource(icon)
-    }
-
     private fun sendMusicControl(keyCode: Int) {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager ?: return
         val eventTime = SystemClock.uptimeMillis()
         val downEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0)
         val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0)
