@@ -179,15 +179,24 @@ class MainActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_LOCAL_ONLY, true)
             setPackage(YOUTUBE_MUSIC_PACKAGE)
         }
-        val intent = if (youtubeIntent.resolveActivity(packageManager) != null) {
-            youtubeIntent
-        } else {
-            Intent(Intent.ACTION_PICK, uri).apply {
-                type = MediaStore.Audio.Playlists.CONTENT_TYPE
-                putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-            }
+        val fallbackIntent = Intent(Intent.ACTION_PICK, uri).apply {
+            type = MediaStore.Audio.Playlists.CONTENT_TYPE
+            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
         }
-        playlistPickerLauncher.launch(intent)
+        val intent = when {
+            youtubeIntent.resolveActivity(packageManager) != null -> youtubeIntent
+            fallbackIntent.resolveActivity(packageManager) != null -> fallbackIntent
+            else -> null
+        }
+        if (intent != null) {
+            playlistPickerLauncher.launch(intent)
+        } else {
+            Toast.makeText(
+                this,
+                R.string.toast_playlist_picker_unavailable,
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun handlePlaylistSelection(uri: Uri) {
