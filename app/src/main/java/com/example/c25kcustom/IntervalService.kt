@@ -280,14 +280,27 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun currentCycleNumber(): Int {
-        if (segments.isEmpty() || currentIndex < 0) return 0
-        var cycles = 0
-        for (i in 0..currentIndex.coerceAtMost(segments.lastIndex)) {
-            if (segments[i].type == SegmentType.RUN) {
-                cycles++
+        if (segments.isEmpty()) return 0
+
+        val safeIndex = currentIndex.coerceIn(0, segments.lastIndex)
+        val completedRuns = if (currentIndex < 0) {
+            0
+        } else {
+            var count = 0
+            for (i in 0..safeIndex) {
+                if (segments[i].type == SegmentType.RUN) {
+                    count++
+                }
             }
+            count
         }
-        return cycles
+
+        if (completedRuns > 0) {
+            return completedRuns
+        }
+
+        val hasRunSegment = segments.any { it.type == SegmentType.RUN }
+        return if (hasRunSegment) 1 else 0
     }
 
     private fun sendWorkoutFinishedBroadcast() {
