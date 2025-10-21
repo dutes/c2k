@@ -31,6 +31,8 @@
     <string name="action_music_next">Play next track</string>
     <string name="toast_install_youtube_music">Install YouTube Music to pick a playlist</string>
     <string name="toast_playlist_picker_unavailable">No app found to pick a playlist</string>
+    <string name="toast_playlist_picker_launch_failed">Couldn't open the selected app to pick a playlist</string>
+    <string name="dialog_playlist_picker_title">Choose an app for playlists</string>
     <string name="status_running">Workout running</string>
     <string name="status_stopped">Service stopped</string>
     <string name="error_positive_number">Please enter a positive number</string>
