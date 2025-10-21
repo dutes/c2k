@@ -18,12 +18,14 @@ import android.os.Looper
 import android.os.PowerManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.core.content.ContextCompat
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.min
+import kotlin.collections.ArrayDeque
 
 class IntervalService : Service(), TextToSpeech.OnInitListener {
 
@@ -53,6 +55,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile
     private var pendingStopAfterSpeech = false
+    private val pendingUtterances = ArrayDeque<Pair<String, Boolean>>()
+    private var halfwayAnnouncementDelivered = true
+    private var lastThirtySecondsAnnouncementDelivered = true
+    private var previousRemainingSeconds: Int? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -90,6 +96,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         tts?.stop()
         tts?.shutdown()
         abandonAudioFocus()
+        synchronized(pendingUtterances) { pendingUtterances.clear() }
         wakeLock?.let { if (it.isHeld) it.release() }
         super.onDestroy()
     }
@@ -197,6 +204,14 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         val segment = segments[currentIndex]
         remainingMillis = segment.durationSeconds * 1000L
         pendingStopAfterSpeech = false
+        if (segment.type == SegmentType.RUN) {
+            halfwayAnnouncementDelivered = false
+            lastThirtySecondsAnnouncementDelivered = false
+        } else {
+            halfwayAnnouncementDelivered = true
+            lastThirtySecondsAnnouncementDelivered = true
+        }
+        previousRemainingSeconds = segment.durationSeconds
         speak(segment.announcement)
         startSegmentTimer(remainingMillis)
         updateNotification()
@@ -217,12 +232,14 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         countdown = object : CountDownTimer(durationMillis, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
                 remainingMillis = millisUntilFinished
+                maybeAnnounceRunMilestones(millisUntilFinished)
                 updateNotification()
                 broadcastProgress()
             }
 
             override fun onFinish() {
                 remainingMillis = 0
+                previousRemainingSeconds = 0
                 updateNotification()
                 broadcastProgress()
                 startNextSegment()
@@ -580,21 +597,80 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         )
     }
 
-    private fun speak(text: String): Boolean {
-        if (!ttsReady || text.isBlank()) return false
+    private fun maybeAnnounceRunMilestones(millisUntilFinished: Long) {
+        val segment = segments.getOrNull(currentIndex) ?: return
+        if (segment.type != SegmentType.RUN) {
+            previousRemainingSeconds = segment.durationSeconds
+            return
+        }
+
+        val remainingSeconds = ((millisUntilFinished + 999) / 1000L).toInt().coerceAtLeast(0)
+        val previousSeconds = previousRemainingSeconds ?: segment.durationSeconds
+
+        if (!halfwayAnnouncementDelivered) {
+            val halfwayThreshold = segment.durationSeconds / 2
+            if (previousSeconds > halfwayThreshold && remainingSeconds <= halfwayThreshold) {
+                announceEncouragement(R.string.segment_run_halfway_encouragement)
+                halfwayAnnouncementDelivered = true
+            }
+        }
+
+        if (!lastThirtySecondsAnnouncementDelivered) {
+            val lastThirtyThreshold = 30
+            if (segment.durationSeconds >= lastThirtyThreshold &&
+                previousSeconds > lastThirtyThreshold &&
+                remainingSeconds <= lastThirtyThreshold
+            ) {
+                announceEncouragement(R.string.segment_run_last_thirty_encouragement)
+                lastThirtySecondsAnnouncementDelivered = true
+            }
+        }
+
+        previousRemainingSeconds = remainingSeconds
+    }
+
+    private fun announceEncouragement(@StringRes messageResId: Int) {
+        val encouragement = getString(messageResId)
+        speak(encouragement, flush = true)
+    }
+
+    private fun speak(text: String, flush: Boolean = true): Boolean {
+        if (text.isBlank()) return false
+        if (!ttsReady) {
+            synchronized(pendingUtterances) {
+                if (flush) {
+                    pendingUtterances.clear()
+                }
+                pendingUtterances.addLast(text to flush)
+            }
+            return false
+        }
         if (audioFocusRequest == null) {
             val attributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build()
-            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(attributes)
                 .setOnAudioFocusChangeListener { _ -> }
                 .build()
         }
-        audioManager?.requestAudioFocus(audioFocusRequest!!)
+        val focusGranted = audioManager?.requestAudioFocus(audioFocusRequest!!)
+        if (focusGranted != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            synchronized(pendingUtterances) {
+                if (flush) {
+                    pendingUtterances.clear()
+                }
+                pendingUtterances.addLast(text to flush)
+            }
+            return false
+        }
+        if (flush) {
+            synchronized(pendingUtterances) { pendingUtterances.clear() }
+        }
         val utteranceId = UUID.randomUUID().toString()
-        val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        val queueMode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        val result = tts?.speak(text, queueMode, null, utteranceId)
         return result == TextToSpeech.SUCCESS
     }
 
@@ -618,8 +694,29 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         if (status == TextToSpeech.SUCCESS) {
             val result = tts?.setLanguage(Locale.getDefault())
             ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
+            if (ttsReady) {
+                playPendingUtterances()
+            } else {
+                synchronized(pendingUtterances) { pendingUtterances.clear() }
+            }
         } else {
             ttsReady = false
+            synchronized(pendingUtterances) { pendingUtterances.clear() }
+        }
+    }
+
+    private fun playPendingUtterances() {
+        val queued: List<Pair<String, Boolean>>
+        synchronized(pendingUtterances) {
+            if (pendingUtterances.isEmpty()) return
+            queued = pendingUtterances.toList()
+            pendingUtterances.clear()
+        }
+        var first = true
+        for ((text, flush) in queued) {
+            val shouldFlush = if (first) flush else false
+            speak(text, flush = shouldFlush)
+            first = false
         }
     }
 
