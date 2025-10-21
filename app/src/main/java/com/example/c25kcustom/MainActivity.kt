@@ -179,15 +179,24 @@ class MainActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_LOCAL_ONLY, true)
             setPackage(YOUTUBE_MUSIC_PACKAGE)
         }
-        val intent = if (youtubeIntent.resolveActivity(packageManager) != null) {
-            youtubeIntent
-        } else {
-            Intent(Intent.ACTION_PICK, uri).apply {
-                type = MediaStore.Audio.Playlists.CONTENT_TYPE
-                putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-            }
+        val fallbackIntent = Intent(Intent.ACTION_PICK, uri).apply {
+            type = MediaStore.Audio.Playlists.CONTENT_TYPE
+            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
         }
-        playlistPickerLauncher.launch(intent)
+        val intent = when {
+            youtubeIntent.resolveActivity(packageManager) != null -> youtubeIntent
+            fallbackIntent.resolveActivity(packageManager) != null -> fallbackIntent
+            else -> null
+        }
+        if (intent != null) {
+            playlistPickerLauncher.launch(intent)
+        } else {
+            Toast.makeText(
+                this,
+                R.string.toast_playlist_picker_unavailable,
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun handlePlaylistSelection(uri: Uri) {
@@ -411,11 +420,31 @@ class MainActivity : AppCompatActivity() {
             setPackage(YOUTUBE_MUSIC_PACKAGE)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        if (fallbackIntent.resolveActivity(packageManager) != null) {
-            startActivity(fallbackIntent)
-        } else {
+        try {
+            if (fallbackIntent.resolveActivity(packageManager) != null) {
+                startActivity(fallbackIntent)
+                return
+            }
+        } catch (notFound: ActivityNotFoundException) {
+            // ignored, fallback below
+        }
+
+        if (!openYouTubeMusic()) {
             Toast.makeText(this, R.string.toast_playlist_playback_failed, Toast.LENGTH_SHORT)
                 .show()
+        }
+    }
+
+    private fun openYouTubeMusic(): Boolean {
+        val launchIntent = packageManager.getLaunchIntentForPackage(YOUTUBE_MUSIC_PACKAGE)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        } ?: return false
+
+        return try {
+            startActivity(launchIntent)
+            true
+        } catch (error: RuntimeException) {
+            false
         }
     }
 
