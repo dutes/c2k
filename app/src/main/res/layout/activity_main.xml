@@ -301,7 +301,7 @@
                         app:icon="@android:drawable/ic_media_play"
                         app:iconPadding="12dp"
                         app:iconSize="36dp"
-                        android:contentDescription="@string/action_music_play_pause" />
+                        android:contentDescription="@string/action_music_play" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/musicNextButton"
