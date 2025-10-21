@@ -19,129 +19,159 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true"
-            android:padding="24dp">
+            android:padding="16dp">
 
             <LinearLayout
                 android:id="@+id/setupContent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:showDividers="none">
+                android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/playlistLabel"
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="@string/label_playlist"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+                    android:layout_marginBottom="16dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/selectPlaylistButton"
-                    style="@style/Widget.Material3.Button.ElevatedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    android:text="@string/action_select_playlist"
-                    app:icon="@android:drawable/ic_menu_search"
-                    app:iconGravity="textStart"
-                    app:iconPadding="12dp" />
-
-                <TextView
-                    android:id="@+id/selectedPlaylistText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    android:text="@string/label_no_playlist"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                    tools:text="Morning Run Mix" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/runMinutesInput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="@string/hint_run_seconds"
-                    app:endIconMode="clear_text">
-
-                    <com.google.android.material.textfield.TextInputEditText
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/walkMinutesInput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                        <TextView
+                            android:id="@+id/playlistLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:gravity="center"
+                            android:text="@string/label_playlist"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/selectPlaylistButton"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/action_select_playlist"
+                            app:icon="@android:drawable/ic_menu_search"
+                            app:iconGravity="textStart" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="@string/hint_walk_seconds"
-                    app:endIconMode="clear_text">
+                    android:layout_marginBottom="16dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/totalMinutesInput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/runMinutesInput"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="16dp"
+                            android:hint="@string/hint_run_seconds"
+                            app:endIconMode="clear_text">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/walkMinutesInput"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="16dp"
+                            android:hint="@string/hint_walk_seconds"
+                            app:endIconMode="clear_text">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/totalMinutesInput"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="16dp"
+                            android:hint="@string/hint_total_minutes"
+                            app:helperText="@string/helper_total_minutes">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android.maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/cycleCountInput"
+                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/hint_cycle_count"
+                            app:helperText="@string/helper_cycle_count">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:maxLines="1" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="@string/hint_total_minutes"
-                    app:helperText="@string/helper_total_minutes">
+                    android:layout_marginBottom="24dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/cycleCountInput"
-                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="@string/hint_cycle_count"
-                    app:helperText="@string/helper_cycle_count">
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/warmupSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp"
+                            android:checked="true"
+                            android:text="@string/label_include_warmup" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/cooldownSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/label_include_cooldown" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/warmupSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    android:checked="true"
-                    android:text="@string/label_include_warmup" />
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/cooldownSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    android:checked="true"
-                    android:text="@string/label_include_cooldown" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/startButton"
                     style="@style/Widget.Material3.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
                     android:text="@string/action_start" />
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
@@ -150,7 +180,8 @@
             android:id="@+id/inProgressScroll"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="24dp">
+            android:fillViewport="true"
+            android:padding="16dp">
 
             <LinearLayout
                 android:id="@+id/inProgressContent"
@@ -162,31 +193,15 @@
                     android:id="@+id/inProgressTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center"
                     android:text="@string/label_workout_in_progress"
                     android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall" />
-
-                <TextView
-                    android:id="@+id/inProgressPlaylistLabel"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/label_playlist_playing"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
-
-                <TextView
-                    android:id="@+id/inProgressPlaylistValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                    tools:text="Morning Run Mix" />
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardElevation="2dp"
-                    app:cardUseCompatPadding="true">
+                    android:layout_marginBottom="16dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -198,6 +213,7 @@
                             android:id="@+id/cycleLabel"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
                             android:text="@string/label_cycle"
                             android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
@@ -206,6 +222,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
+                            android:gravity="center"
                             android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
                             tools:text="Cycle 1 of 8" />
 
@@ -213,6 +230,7 @@
                             android:id="@+id/intervalLabel"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
                             android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
                             tools:text="Run Interval" />
 
@@ -226,6 +244,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
+                                android:gravity="center"
                                 android:orientation="vertical">
 
                                 <TextView
@@ -247,6 +266,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
+                                android:gravity="center"
                                 android:orientation="vertical">
 
                                 <TextView
@@ -267,56 +287,71 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <TextView
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:text="@string/label_music_controls"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+                    android:layout_marginBottom="24dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingBottom="16dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/musicPreviousButton"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:icon="@android:drawable/ic_media_previous"
-                        app:iconPadding="12dp"
-                        app:iconSize="32dp"
-                        android:contentDescription="@string/action_music_previous" />
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/musicPlayPauseButton"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        app:icon="@android:drawable/ic_media_play"
-                        app:iconPadding="12dp"
-                        app:iconSize="36dp"
-                        android:contentDescription="@string/action_music_play" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:gravity="center"
+                            android:text="@string/label_music_controls"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/musicNextButton"
-                        style="@style/Widget.Material3.Button.IconButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:icon="@android:drawable/ic_media_next"
-                        app:iconPadding="12dp"
-                        app:iconSize="32dp"
-                        android:contentDescription="@string/action_music_next" />
-                </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/musicPreviousButton"
+                                style="@style/Widget.Material3.Button.IconButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:icon="@android:drawable/ic_media_previous"
+                                app:iconPadding="12dp"
+                                app:iconSize="32dp"
+                                android:contentDescription="@string/action_music_previous" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/musicPlayPauseButton"
+                                style="@style/Widget.Material3.Button.IconButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="16dp"
+                                android:layout_marginEnd="16dp"
+                                app:icon="@android:drawable/ic_media_play"
+                                app:iconPadding="12dp"
+                                app:iconSize="36dp"
+                                android:contentDescription="@string/action_music_play" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/musicNextButton"
+                                style="@style/Widget.Material3.Button.IconButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:icon="@android:drawable/ic_media_next"
+                                app:iconPadding="12dp"
+                                app:iconSize="32dp"
+                                android:contentDescription="@string/action_music_next" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/pauseResumeButton"
-                    style="@style/Widget.Material3.Button"
+                    style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"

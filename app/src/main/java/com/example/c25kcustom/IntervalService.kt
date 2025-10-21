@@ -22,7 +22,6 @@ import android.speech.tts.UtteranceProgressListener
 import android.view.KeyEvent
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
-import androidx.core.app.TaskStackBuilder
 import androidx.core.content.ContextCompat
 import java.util.Locale
 import java.util.UUID
@@ -549,11 +548,15 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         isPaused: Boolean,
         showActions: Boolean = true
     ): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = TaskStackBuilder.create(this).run {
-            addNextIntentWithParentStack(intent)
-            getPendingIntent(REQUEST_MAIN, PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag())
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            REQUEST_MAIN,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+        )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -563,8 +566,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
             .setOnlyAlertOnce(true)
             .setColor(ContextCompat.getColor(this, R.color.md_theme_primary))
-
-        pendingIntent?.let { builder.setContentIntent(it) }
+            .setContentIntent(pendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         if (showActions) {
             if (isPaused) {
@@ -736,7 +739,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH
             )
             notificationManager.createNotificationChannel(channel)
         }

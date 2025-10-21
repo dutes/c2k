@@ -1,15 +1,19 @@
 package com.example.c25kcustom
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.c25kcustom.databinding.ActivityMainBinding
@@ -24,6 +28,17 @@ class MainActivity : AppCompatActivity() {
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (!isGranted) {
+                Toast.makeText(
+                    this,
+                    "Notifications are disabled. You can enable them in the app settings.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
 
     private val progressReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent) {
@@ -49,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
         showState(currentState)
         updatePauseButton()
+        requestNotificationPermission()
     }
 
     override fun onStart() {
@@ -166,7 +182,7 @@ class MainActivity : AppCompatActivity() {
         val runSeconds = runMinutes * 60
         val walkSeconds = walkMinutes * 60
         val totalMinutes = binding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val cycles = binding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val cycles = binding.cycleCountInput.editText?.toString()?.toIntOrNull() ?: 0
         val includeWarmup = binding.warmupSwitch.isChecked
         val includeCooldown = binding.cooldownSwitch.isChecked
 
@@ -277,6 +293,18 @@ class MainActivity : AppCompatActivity() {
         val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0)
         audioManager.dispatchMediaKeyEvent(downEvent)
         audioManager.dispatchMediaKeyEvent(upEvent)
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     companion object {

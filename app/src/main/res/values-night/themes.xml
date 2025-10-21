@@ -1,3 +1,15 @@
 <resources>
-    <style name="Theme.C25KCustomCoach" parent="Theme.Material3.DayNight.NoActionBar" />
+    <!--
+    Having a parent theme of "Theme.Material3.DayNight.NoActionBar" is great for compatibility.
+    However, for devices that support it, we can enable dynamic colors by using
+    "Theme.Material3.DynamicColors.DayNight" as the parent.
+    -->
+    <style name="Theme.C25KCustomCoach" parent="Theme.Material3.DayNight.NoActionBar">
+        <!--
+        If you want to force a specific color palette, you can define your custom colors here.
+        For example:
+        <item name="colorPrimary">@color/my_lilac</item>
+        <item name="colorSecondary">@color/my_other_color</item>
+        -->
+    </style>
 </resources>
