@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -18,6 +19,7 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import com.example.c25kcustom.databinding.ActivityMainBinding
 import java.util.Locale
@@ -34,6 +36,9 @@ class MainActivity : AppCompatActivity() {
     private var receiverRegistered = false
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
+    private val preferences by lazy {
+        getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
 
     private val playlistPickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -174,21 +179,121 @@ class MainActivity : AppCompatActivity() {
     private fun launchPlaylistPicker() {
         pendingPlaylistLaunch = false
         val uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
-        val youtubeIntent = Intent(Intent.ACTION_PICK, uri).apply {
+        val availableTargets = findPlaylistPickerTargets(uri)
+
+        if (availableTargets.isEmpty()) {
+            Toast.makeText(
+                this,
+                R.string.toast_playlist_picker_unavailable,
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val preferredComponent = loadPreferredPlaylistPicker()
+        if (preferredComponent != null) {
+            val preferredTarget = availableTargets.firstOrNull { it.component == preferredComponent }
+            if (preferredTarget != null && launchPlaylistPicker(preferredTarget, remember = true)) {
+                return
+            }
+            clearPreferredPlaylistPicker()
+        }
+
+        if (availableTargets.size == 1) {
+            if (launchPlaylistPicker(availableTargets.first(), remember = true)) {
+                return
+            }
+            Toast.makeText(
+                this,
+                R.string.toast_playlist_picker_launch_failed,
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        showPlaylistPickerChooser(availableTargets)
+    }
+
+    private fun showPlaylistPickerChooser(targets: List<PlaylistPickerTarget>) {
+        val labels = targets.map { it.label }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_playlist_picker_title)
+            .setItems(labels) { _, which ->
+                val target = targets[which]
+                if (launchPlaylistPicker(target, remember = true)) {
+                    return@setItems
+                }
+                Toast.makeText(
+                    this,
+                    R.string.toast_playlist_picker_launch_failed,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun launchPlaylistPicker(target: PlaylistPickerTarget, remember: Boolean): Boolean {
+        val uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+        val intent = Intent(Intent.ACTION_PICK, uri).apply {
             type = MediaStore.Audio.Playlists.CONTENT_TYPE
             putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-            setPackage(YOUTUBE_MUSIC_PACKAGE)
+            component = target.component
         }
-        val intent = if (youtubeIntent.resolveActivity(packageManager) != null) {
-            youtubeIntent
-        } else {
-            Intent(Intent.ACTION_PICK, uri).apply {
-                type = MediaStore.Audio.Playlists.CONTENT_TYPE
-                putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+        return try {
+            playlistPickerLauncher.launch(intent)
+            if (remember) {
+                savePreferredPlaylistPicker(target.component)
             }
+            true
+        } catch (error: RuntimeException) {
+            false
         }
-        playlistPickerLauncher.launch(intent)
     }
+
+    private fun findPlaylistPickerTargets(uri: Uri): List<PlaylistPickerTarget> {
+        val baseIntent = Intent(Intent.ACTION_PICK, uri).apply {
+            type = MediaStore.Audio.Playlists.CONTENT_TYPE
+            putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+        }
+
+        val targets = LinkedHashMap<ComponentName, PlaylistPickerTarget>()
+
+        val youtubeIntent = Intent(baseIntent).apply { setPackage(YOUTUBE_MUSIC_PACKAGE) }
+        val youtubeTargets = packageManager.queryIntentActivities(youtubeIntent, 0)
+        for (info in youtubeTargets) {
+            val component = ComponentName(info.activityInfo.packageName, info.activityInfo.name)
+            val label = info.loadLabel(packageManager)?.toString() ?: info.activityInfo.packageName
+            targets[component] = PlaylistPickerTarget(component, label)
+        }
+
+        val fallbackTargets = packageManager.queryIntentActivities(baseIntent, 0)
+        for (info in fallbackTargets) {
+            val component = ComponentName(info.activityInfo.packageName, info.activityInfo.name)
+            if (targets.containsKey(component)) {
+                continue
+            }
+            val label = info.loadLabel(packageManager)?.toString() ?: info.activityInfo.packageName
+            targets[component] = PlaylistPickerTarget(component, label)
+        }
+
+        return targets.values.sortedBy { it.label.lowercase(Locale.getDefault()) }
+    }
+
+    private fun savePreferredPlaylistPicker(component: ComponentName) {
+        preferences.edit().putString(KEY_PLAYLIST_PICKER_COMPONENT, component.flattenToString()).apply()
+    }
+
+    private fun loadPreferredPlaylistPicker(): ComponentName? {
+        val flattened = preferences.getString(KEY_PLAYLIST_PICKER_COMPONENT, null) ?: return null
+        return ComponentName.unflattenFromString(flattened)
+    }
+
+    private fun clearPreferredPlaylistPicker() {
+        preferences.edit().remove(KEY_PLAYLIST_PICKER_COMPONENT).apply()
+    }
+
+    private data class PlaylistPickerTarget(val component: ComponentName, val label: String)
 
     private fun handlePlaylistSelection(uri: Uri) {
         val playlist = readPlaylistSelection(uri)
@@ -411,11 +516,31 @@ class MainActivity : AppCompatActivity() {
             setPackage(YOUTUBE_MUSIC_PACKAGE)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        if (fallbackIntent.resolveActivity(packageManager) != null) {
-            startActivity(fallbackIntent)
-        } else {
+        try {
+            if (fallbackIntent.resolveActivity(packageManager) != null) {
+                startActivity(fallbackIntent)
+                return
+            }
+        } catch (notFound: ActivityNotFoundException) {
+            // ignored, fallback below
+        }
+
+        if (!openYouTubeMusic()) {
             Toast.makeText(this, R.string.toast_playlist_playback_failed, Toast.LENGTH_SHORT)
                 .show()
+        }
+    }
+
+    private fun openYouTubeMusic(): Boolean {
+        val launchIntent = packageManager.getLaunchIntentForPackage(YOUTUBE_MUSIC_PACKAGE)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        } ?: return false
+
+        return try {
+            startActivity(launchIntent)
+            true
+        } catch (error: RuntimeException) {
+            false
         }
     }
 
@@ -434,6 +559,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
+        private const val PREFERENCES_NAME = "playlist_preferences"
+        private const val KEY_PLAYLIST_PICKER_COMPONENT = "playlist_picker_component"
         private const val INVALID_PLAYLIST_ID = -1L
         private const val STATE_PLAYLIST_ID = "state_playlist_id"
         private const val STATE_PLAYLIST_NAME = "state_playlist_name"
