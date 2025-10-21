@@ -112,20 +112,20 @@ class MainActivity : AppCompatActivity() {
     private fun validateInputs(): Boolean {
         var valid = true
 
-        val runSeconds = binding.runSecondsInput.editText?.text?.toString()?.toIntOrNull()
-        if (runSeconds == null || runSeconds <= 0) {
-            binding.runSecondsInput.error = getString(R.string.error_positive_number)
+        val runMinutes = binding.runMinutesInput.editText?.text?.toString()?.toIntOrNull()
+        if (runMinutes == null || runMinutes <= 0) {
+            binding.runMinutesInput.error = getString(R.string.error_positive_number)
             valid = false
         } else {
-            binding.runSecondsInput.error = null
+            binding.runMinutesInput.error = null
         }
 
-        val walkSeconds = binding.walkSecondsInput.editText?.text?.toString()?.toIntOrNull()
-        if (walkSeconds == null || walkSeconds <= 0) {
-            binding.walkSecondsInput.error = getString(R.string.error_positive_number)
+        val walkMinutes = binding.walkMinutesInput.editText?.text?.toString()?.toIntOrNull()
+        if (walkMinutes == null || walkMinutes <= 0) {
+            binding.walkMinutesInput.error = getString(R.string.error_positive_number)
             valid = false
         } else {
-            binding.walkSecondsInput.error = null
+            binding.walkMinutesInput.error = null
         }
 
         val totalMinutesText = binding.totalMinutesInput.editText?.text?.toString()
@@ -150,8 +150,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startIntervalService() {
-        val runSeconds = binding.runSecondsInput.editText?.text?.toString()?.toInt() ?: 0
-        val walkSeconds = binding.walkSecondsInput.editText?.text?.toString()?.toInt() ?: 0
+        val runMinutes = binding.runMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val walkMinutes = binding.walkMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val runSeconds = runMinutes * 60
+        val walkSeconds = walkMinutes * 60
         val totalMinutes = binding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
         val cycles = binding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
         val includeWarmup = binding.warmupSwitch.isChecked
