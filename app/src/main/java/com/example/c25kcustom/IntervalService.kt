@@ -16,8 +16,10 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.view.KeyEvent
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
@@ -251,6 +253,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         countdown?.cancel()
         isPaused = false
         pendingStopAfterSpeech = false
+        sendMusicControl(KeyEvent.KEYCODE_MEDIA_PAUSE)
         val spoke = speak(getString(R.string.notification_complete))
         val completedNotification = buildNotification(
             title = getString(R.string.notification_title),
@@ -688,6 +691,14 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         val flag = if (removeNotification) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH
         stopForeground(flag)
         stopSelf()
+    }
+
+    private fun sendMusicControl(keyCode: Int) {
+        val eventTime = SystemClock.uptimeMillis()
+        val downEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0)
+        val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0)
+        audioManager?.dispatchMediaKeyEvent(downEvent)
+        audioManager?.dispatchMediaKeyEvent(upEvent)
     }
 
     override fun onInit(status: Int) {
