@@ -53,7 +53,7 @@
     <string name="segment_warmup_announcement">Warm-up walk for 5 minutes</string>
     <string name="segment_run_title">Run</string>
     <string name="segment_run_announcement">Run for %1$s</string>
-    <string name="segment_run_halfway_encouragement">You\\\'re half way there, keep it up!!</string>
+    <string name="segment_run_halfway_encouragement">Now half way there, keep it up!!</string>
     <string name="segment_run_last_thirty_encouragement">This is the last 30 seconds - PUSH IT!</string>
     <string name="segment_walk_title">Walk</string>
     <string name="segment_walk_announcement">Walk for %1$s</string>
