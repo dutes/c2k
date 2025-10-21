@@ -417,7 +417,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         showActions: Boolean = true
     ): Notification {
         val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent: PendingIntent = TaskStackBuilder.create(this).run {
+        val pendingIntent = TaskStackBuilder.create(this).run {
             addNextIntentWithParentStack(intent)
             getPendingIntent(REQUEST_MAIN, PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag())
         }
@@ -426,11 +426,12 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(content)
-            .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
             .setOnlyAlertOnce(true)
             .setColor(ContextCompat.getColor(this, R.color.md_theme_primary))
+
+        pendingIntent?.let { builder.setContentIntent(it) }
 
         if (showActions) {
             if (isPaused) {
@@ -456,7 +457,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         return builder.build()
     }
 
-    private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent {
+    private fun actionPendingIntent(action: String, requestCode: Int): PendingIntent? {
         val intent = Intent(this, IntervalService::class.java).setAction(action)
         return PendingIntent.getService(
             this,
@@ -464,10 +465,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
         )
-    }
-
-    private fun startForeground(id: Int, notification: Notification) {
-        super.startForeground(id, notification)
     }
 
     private fun speak(text: String): Boolean {
