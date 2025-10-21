@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private var receiverRegistered = false
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
+    private var isMusicPlaying = false
 
     private val progressReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent) {
@@ -42,10 +43,12 @@ class MainActivity : AppCompatActivity() {
             runCatching { UiState.valueOf(stored) }.getOrDefault(UiState.SETUP)
         } ?: UiState.SETUP
         isWorkoutPaused = savedInstanceState?.getBoolean(STATE_WORKOUT_PAUSED) ?: false
+        isMusicPlaying = savedInstanceState?.getBoolean(STATE_MUSIC_PLAYING) ?: false
 
         setupListeners()
         showState(currentState)
         updatePauseButton()
+        updateMusicPlayPauseButton()
     }
 
     override fun onStart() {
@@ -78,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_UI_STATE, currentState.name)
         outState.putBoolean(STATE_WORKOUT_PAUSED, isWorkoutPaused)
+        outState.putBoolean(STATE_MUSIC_PLAYING, isMusicPlaying)
     }
 
     private fun setupListeners() {
@@ -92,7 +96,9 @@ class MainActivity : AppCompatActivity() {
         }
         binding.pauseResumeButton.setOnClickListener { toggleWorkoutPause() }
         binding.musicPreviousButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_PREVIOUS) }
-        binding.musicPlayPauseButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }
+        binding.musicPlayPauseButton.setOnClickListener {
+            sendMusicControl(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+        }
         binding.musicNextButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_NEXT) }
     }
 
@@ -169,7 +175,9 @@ class MainActivity : AppCompatActivity() {
 
         ContextCompat.startForegroundService(this, intent)
         isWorkoutPaused = false
+        isMusicPlaying = false
         updatePauseButton()
+        updateMusicPlayPauseButton()
         showState(UiState.IN_PROGRESS)
     }
 
@@ -211,14 +219,18 @@ class MainActivity : AppCompatActivity() {
     private fun handleWorkoutFinished() {
         Toast.makeText(this, R.string.event_workout_complete, Toast.LENGTH_LONG).show()
         isWorkoutPaused = false
+        isMusicPlaying = false
         updatePauseButton()
+        updateMusicPlayPauseButton()
         showState(UiState.SETUP)
     }
 
     private fun handleWorkoutStopped() {
         Toast.makeText(this, R.string.event_workout_stopped, Toast.LENGTH_SHORT).show()
         isWorkoutPaused = false
+        isMusicPlaying = false
         updatePauseButton()
+        updateMusicPlayPauseButton()
         showState(UiState.SETUP)
     }
 
@@ -245,6 +257,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateMusicPlayPauseButton() {
+        val iconRes = if (isMusicPlaying) {
+            android.R.drawable.ic_media_pause
+        } else {
+            android.R.drawable.ic_media_play
+        }
+        val contentDescriptionRes = if (isMusicPlaying) {
+            R.string.action_music_pause
+        } else {
+            R.string.action_music_play
+        }
+        binding.musicPlayPauseButton.apply {
+            setIconResource(iconRes)
+            contentDescription = getString(contentDescriptionRes)
+        }
+    }
+
     private fun sendMusicControl(keyCode: Int) {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager ?: return
         val eventTime = SystemClock.uptimeMillis()
@@ -252,11 +281,22 @@ class MainActivity : AppCompatActivity() {
         val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0)
         audioManager.dispatchMediaKeyEvent(downEvent)
         audioManager.dispatchMediaKeyEvent(upEvent)
+        handleMusicControlStateChange(keyCode)
+    }
+
+    private fun handleMusicControlStateChange(keyCode: Int) {
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY -> isMusicPlaying = true
+            KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_STOP -> isMusicPlaying = false
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> isMusicPlaying = !isMusicPlaying
+        }
+        updateMusicPlayPauseButton()
     }
 
     companion object {
         private const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
         private const val STATE_UI_STATE = "state_ui"
         private const val STATE_WORKOUT_PAUSED = "state_workout_paused"
+        private const val STATE_MUSIC_PLAYING = "state_music_playing"
     }
 }
