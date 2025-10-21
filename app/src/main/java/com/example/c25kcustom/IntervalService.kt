@@ -205,7 +205,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
 
     private fun startSegmentTimer(durationMillis: Long) {
         countdown?.cancel()
-        val segment = segments.getOrNull(currentIndex) ?: return
+        if (segments.getOrNull(currentIndex) == null) return
         if (durationMillis <= 0L) {
             remainingMillis = 0L
             updateNotification()
@@ -536,7 +536,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                 .build()
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 .setAudioAttributes(attributes)
-                .setOnAudioFocusChangeListener { }
+                .setOnAudioFocusChangeListener { _ -> }
                 .build()
         }
         audioManager?.requestAudioFocus(audioFocusRequest!!)
