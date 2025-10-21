@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">C25K Custom Coach</string>
-    <string name="hint_run_seconds">Run interval (seconds)</string>
-    <string name="hint_walk_seconds">Walk interval (seconds)</string>
+    <string name="hint_run_seconds">Run interval (minutes)</string>
+    <string name="hint_walk_seconds">Walk interval (minutes)</string>
     <string name="hint_total_minutes">Total workout (minutes)</string>
     <string name="hint_cycle_count">Cycle count (optional)</string>
     <string name="helper_total_minutes">Leave blank if using cycle count</string>
@@ -52,11 +52,19 @@
     <string name="segment_warmup_title">Warm-up</string>
     <string name="segment_warmup_announcement">Warm-up walk for 5 minutes</string>
     <string name="segment_run_title">Run</string>
-    <string name="segment_run_announcement">Run for %1$d seconds</string>
+    <string name="segment_run_announcement">Run for %1$s</string>
     <string name="segment_walk_title">Walk</string>
-    <string name="segment_walk_announcement">Walk for %1$d seconds</string>
+    <string name="segment_walk_announcement">Walk for %1$s</string>
     <string name="segment_cooldown_title">Cool-down</string>
     <string name="segment_cooldown_announcement">Cool-down walk for 5 minutes</string>
     <string name="event_workout_complete">Workout complete! Great job.</string>
     <string name="event_workout_stopped">Workout stopped</string>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="duration_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
 </resources>

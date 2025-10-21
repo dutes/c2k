@@ -334,7 +334,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                             SegmentType.RUN,
                             runSeconds,
                             getString(R.string.segment_run_title),
-                            getString(R.string.segment_run_announcement, runSeconds)
+                            getString(
+                                R.string.segment_run_announcement,
+                                formatAnnouncementDuration(runSeconds)
+                            )
                         )
                     )
                     workoutSegments.add(
@@ -342,7 +345,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                             SegmentType.WALK,
                             walkSeconds,
                             getString(R.string.segment_walk_title),
-                            getString(R.string.segment_walk_announcement, walkSeconds)
+                            getString(
+                                R.string.segment_walk_announcement,
+                                formatAnnouncementDuration(walkSeconds)
+                            )
                         )
                     )
                 }
@@ -358,7 +364,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                                 SegmentType.RUN,
                                 runDuration,
                                 getString(R.string.segment_run_title),
-                                getString(R.string.segment_run_announcement, runDuration)
+                                getString(
+                                    R.string.segment_run_announcement,
+                                    formatAnnouncementDuration(runDuration)
+                                )
                             )
                         )
                         remaining -= runDuration
@@ -371,7 +380,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                                 SegmentType.WALK,
                                 walkDuration,
                                 getString(R.string.segment_walk_title),
-                                getString(R.string.segment_walk_announcement, walkDuration)
+                                getString(
+                                    R.string.segment_walk_announcement,
+                                    formatAnnouncementDuration(walkDuration)
+                                )
                             )
                         )
                         remaining -= walkDuration
@@ -388,7 +400,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                             SegmentType.RUN,
                             runSeconds,
                             getString(R.string.segment_run_title),
-                            getString(R.string.segment_run_announcement, runSeconds)
+                            getString(
+                                R.string.segment_run_announcement,
+                                formatAnnouncementDuration(runSeconds)
+                            )
                         )
                     )
                     workoutSegments.add(
@@ -396,7 +411,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                             SegmentType.WALK,
                             walkSeconds,
                             getString(R.string.segment_walk_title),
-                            getString(R.string.segment_walk_announcement, walkSeconds)
+                            getString(
+                                R.string.segment_walk_announcement,
+                                formatAnnouncementDuration(walkSeconds)
+                            )
                         )
                     )
                 }
@@ -407,7 +425,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                         SegmentType.RUN,
                         runSeconds,
                         getString(R.string.segment_run_title),
-                        getString(R.string.segment_run_announcement, runSeconds)
+                        getString(
+                            R.string.segment_run_announcement,
+                            formatAnnouncementDuration(runSeconds)
+                        )
                     )
                 )
                 workoutSegments.add(
@@ -415,7 +436,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                         SegmentType.WALK,
                         walkSeconds,
                         getString(R.string.segment_walk_title),
-                        getString(R.string.segment_walk_announcement, walkSeconds)
+                        getString(
+                            R.string.segment_walk_announcement,
+                            formatAnnouncementDuration(walkSeconds)
+                        )
                     )
                 )
             }
@@ -442,6 +466,22 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             )
         }
         return segments
+    }
+
+    private fun formatAnnouncementDuration(totalSeconds: Int): String {
+        val safeSeconds = totalSeconds.coerceAtLeast(0)
+        val minutes = safeSeconds / 60
+        val seconds = safeSeconds % 60
+        val parts = mutableListOf<String>()
+        if (minutes > 0) {
+            parts += resources.getQuantityString(R.plurals.duration_minutes, minutes, minutes)
+        }
+        if (seconds > 0) {
+            parts += resources.getQuantityString(R.plurals.duration_seconds, seconds, seconds)
+        } else if (parts.isEmpty()) {
+            parts += resources.getQuantityString(R.plurals.duration_seconds, 0, 0)
+        }
+        return parts.joinToString(separator = " ")
     }
 
     private fun updateNotification() {
