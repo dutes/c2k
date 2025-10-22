@@ -25,8 +25,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.util.Locale
 import java.util.UUID
-import kotlin.math.min
 import kotlin.collections.ArrayDeque
+import kotlin.math.min
 
 class IntervalService : Service(), TextToSpeech.OnInitListener {
 
@@ -64,8 +64,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
 
     override fun onCreate() {
         super.onCreate()
-        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         createNotificationChannel()
         tts = TextToSpeech(this, this)
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -86,7 +86,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             }
         })
 
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "C25KCustomCoach::IntervalWakelock"
@@ -155,7 +155,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         remainingMillis = 0L
         pendingStopAfterSpeech = false
 
-        wakeLock?.let { if (!it.isHeld) it.acquire() }
+        val timeout = (totalWorkoutSeconds * 1000L) + 60000L // Workout duration + 1 minute buffer
+        wakeLock?.let { if (!it.isHeld) it.acquire(timeout) }
 
         val notification = buildNotification(
             title = getString(R.string.notification_title),
@@ -254,7 +255,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         countdown?.cancel()
         isPaused = false
         pendingStopAfterSpeech = false
-        sendMusicControl(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        pauseMusic()
         val spoke = speak(getString(R.string.notification_complete))
         val completedNotification = buildNotification(
             title = getString(R.string.notification_title),
@@ -567,7 +568,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             this,
             REQUEST_MAIN,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -611,7 +612,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             this,
             requestCode,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 
@@ -708,10 +709,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         stopSelf()
     }
 
-    private fun sendMusicControl(keyCode: Int) {
+    private fun pauseMusic() {
         val eventTime = SystemClock.uptimeMillis()
-        val downEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0)
-        val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0)
+        val downEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE, 0)
+        val upEvent = KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE, 0)
         audioManager?.dispatchMediaKeyEvent(downEvent)
         audioManager?.dispatchMediaKeyEvent(upEvent)
     }
@@ -747,18 +748,13 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        notificationManager.createNotificationChannel(channel)
     }
-
-    private fun immutableFlag(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
     companion object {
         const val ACTION_START = "com.example.c25kcustom.action.START"

@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
     private var receiverRegistered = false
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
-    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
