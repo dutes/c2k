@@ -11,9 +11,11 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.AttrRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.c25kcustom.databinding.ActivityMainBinding
@@ -215,24 +217,49 @@ class MainActivity : AppCompatActivity() {
         val intervalTitle = intent.getStringExtra(IntervalService.EXTRA_INTERVAL_TITLE)
         val elapsed = intent.getIntExtra(IntervalService.EXTRA_INTERVAL_ELAPSED_SECONDS, 0)
         val remaining = intent.getIntExtra(IntervalService.EXTRA_INTERVAL_REMAINING_SECONDS, 0)
+        val totalWorkout = intent.getIntExtra(IntervalService.EXTRA_TOTAL_WORKOUT_SECONDS, 0)
+        val totalElapsed = intent.getIntExtra(IntervalService.EXTRA_TOTAL_ELAPSED_SECONDS, 0)
         val cycleNumber = intent.getIntExtra(IntervalService.EXTRA_CYCLE_NUMBER, 0)
         val totalCycles = intent.getIntExtra(IntervalService.EXTRA_TOTAL_CYCLES, 0)
         val paused = intent.getBooleanExtra(IntervalService.EXTRA_IS_PAUSED, false)
 
         isWorkoutPaused = paused
+
+        val intervalDuration = elapsed + remaining
+        val intervalProgress = if (intervalDuration > 0) {
+            (elapsed * 100) / intervalDuration
+        } else {
+            0
+        }
+        binding.intervalProgressIndicator.progress = intervalProgress
+
+        val totalProgress = if (totalWorkout > 0) {
+            (totalElapsed * 100) / totalWorkout
+        } else {
+            0
+        }
+        binding.totalProgressIndicator.progress = totalProgress
+
+        binding.intervalRemainingValue.text = formatSeconds(remaining)
         binding.intervalLabel.text = when {
             paused -> getString(R.string.label_interval_paused)
             !intervalTitle.isNullOrBlank() -> intervalTitle
             else -> getString(R.string.label_interval_paused)
         }
-        binding.intervalElapsedValue.text = formatSeconds(elapsed)
-        binding.intervalRemainingValue.text = formatSeconds(remaining)
         val safeCycle = cycleNumber.coerceAtLeast(0)
         binding.cycleValue.text = when {
-            safeCycle <= 0 -> getString(R.string.format_cycle_open_ended, 0)
+            safeCycle <= 0 -> ""
             totalCycles > 0 -> getString(R.string.format_cycle_with_total, safeCycle, totalCycles)
             else -> getString(R.string.format_cycle_open_ended, safeCycle)
         }
+
+        val colorAttr = when {
+            paused -> com.google.android.material.R.attr.colorSecondary
+            intervalTitle == getString(R.string.segment_run_title) -> com.google.android.material.R.attr.colorPrimary
+            else -> com.google.android.material.R.attr.colorTertiary
+        }
+        binding.intervalProgressIndicator.setIndicatorColor(getColorFromAttr(colorAttr))
+
         updatePauseButton()
         showState(UiState.IN_PROGRESS)
     }
@@ -305,6 +332,12 @@ class MainActivity : AppCompatActivity() {
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+    }
+
+    private fun getColorFromAttr(@AttrRes attr: Int): Int {
+        val typedValue = TypedValue()
+        theme.resolveAttribute(attr, typedValue, true)
+        return typedValue.data
     }
 
     companion object {

@@ -47,6 +47,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     private var remainingMillis: Long = 0L
     private var isPaused = false
     private var totalCycles: Int = 0
+    private var totalWorkoutSeconds: Int = 0
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var audioManager: AudioManager? = null
@@ -147,6 +148,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             includeWarmup = includeWarmup,
             includeCooldown = includeCooldown
         )
+        totalWorkoutSeconds = segments.sumOf { it.durationSeconds }
         totalCycles = segments.count { it.type == SegmentType.RUN }
         currentIndex = -1
         isPaused = false
@@ -287,11 +289,21 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         } else {
             0
         }
+
+        val completedSegmentsDuration = if (currentIndex > 0) {
+            segments.subList(0, currentIndex).sumOf { it.durationSeconds }
+        } else {
+            0
+        }
+        val totalElapsed = completedSegmentsDuration + elapsedSeconds
+
         val intent = Intent(ACTION_PROGRESS_UPDATE)
             .setPackage(packageName)
             .putExtra(EXTRA_INTERVAL_TITLE, segment?.title)
             .putExtra(EXTRA_INTERVAL_ELAPSED_SECONDS, elapsedSeconds)
             .putExtra(EXTRA_INTERVAL_REMAINING_SECONDS, remainingSeconds)
+            .putExtra(EXTRA_TOTAL_WORKOUT_SECONDS, totalWorkoutSeconds)
+            .putExtra(EXTRA_TOTAL_ELAPSED_SECONDS, totalElapsed)
             .putExtra(EXTRA_CYCLE_NUMBER, currentCycleNumber())
             .putExtra(EXTRA_TOTAL_CYCLES, totalCycles)
             .putExtra(EXTRA_IS_PAUSED, isPaused)
@@ -766,6 +778,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val EXTRA_INTERVAL_TITLE = "extra_interval_title"
         const val EXTRA_INTERVAL_ELAPSED_SECONDS = "extra_interval_elapsed_seconds"
         const val EXTRA_INTERVAL_REMAINING_SECONDS = "extra_interval_remaining_seconds"
+        const val EXTRA_TOTAL_WORKOUT_SECONDS = "extra_total_workout_seconds"
+        const val EXTRA_TOTAL_ELAPSED_SECONDS = "extra_total_elapsed_seconds"
         const val EXTRA_CYCLE_NUMBER = "extra_cycle_number"
         const val EXTRA_TOTAL_CYCLES = "extra_total_cycles"
         const val EXTRA_IS_PAUSED = "extra_is_paused"

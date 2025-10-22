@@ -198,94 +198,72 @@
                     android:text="@string/label_workout_in_progress"
                     android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall" />
 
-                <com.google.android.material.card.MaterialCardView
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/totalProgressIndicator"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        app:indicatorSize="320dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:trackColor="?attr/colorSurfaceVariant"
+                        app:trackThickness="16dp"
+                        tools:progress="60" />
 
-                        <TextView
-                            android:id="@+id/cycleLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:text="@string/label_cycle"
-                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/intervalProgressIndicator"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:indicatorSize="260dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:trackColor="?attr/colorSurfaceVariant"
+                        app:trackThickness="24dp"
+                        tools:progress="75" />
 
-                        <TextView
-                            android:id="@+id/cycleValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="12dp"
-                            android:gravity="center"
-                            android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
-                            tools:text="Cycle 1 of 8" />
+                    <TextView
+                        android:id="@+id/intervalRemainingValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.DisplayLarge"
+                        app:layout_constraintBottom_toTopOf="@id/intervalLabel"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_chainStyle="packed"
+                        tools:text="02:15" />
 
-                        <TextView
-                            android:id="@+id/intervalLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
-                            tools:text="Run Interval" />
+                    <TextView
+                        android:id="@+id/intervalLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+                        app:layout_constraintBottom_toTopOf="@id/cycleValue"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/intervalRemainingValue"
+                        tools:text="Run" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/cycleValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/intervalLabel"
+                        tools:text="Cycle 1 of 8" />
 
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/intervalElapsedLabel"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/label_elapsed"
-                                    android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
-
-                                <TextView
-                                    android:id="@+id/intervalElapsedValue"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                                    tools:text="00:30" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/intervalRemainingLabel"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/label_remaining"
-                                    android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
-
-                                <TextView
-                                    android:id="@+id/intervalRemainingValue"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                                    tools:text="02:15" />
-                            </LinearLayout>
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
@@ -347,7 +325,6 @@
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
-
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/pauseResumeButton"
