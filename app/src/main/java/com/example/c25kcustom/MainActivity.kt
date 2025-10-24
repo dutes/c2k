@@ -26,6 +26,7 @@ import androidx.annotation.AttrRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import com.example.c25kcustom.databinding.ActivityMainBinding
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.textfield.TextInputLayout
@@ -117,13 +118,13 @@ class MainActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_toggle_cycle_count -> {
                 val show = !prefs.getBoolean("show_cycle_count", false)
-                prefs.edit().putBoolean("show_cycle_count", show).apply()
+                prefs.edit { putBoolean("show_cycle_count", show) }
                 updateCycleCountVisibility()
                 true
             }
             R.id.action_toggle_dynamic_color -> {
                 val useDynamic = !prefs.getBoolean("use_dynamic_color", true)
-                prefs.edit().putBoolean("use_dynamic_color", useDynamic).apply()
+                prefs.edit { putBoolean("use_dynamic_color", useDynamic) }
                 recreate()
                 true
             }
@@ -134,7 +135,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         Intent(this, IntervalService::class.java).also { intent ->
-            bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            bindService(intent, connection, BIND_AUTO_CREATE)
         }
 
         if (!receiverRegistered) {
@@ -201,7 +202,7 @@ class MainActivity : AppCompatActivity() {
         if (launchIntent != null) {
             try {
                 startActivity(launchIntent)
-            } catch (e: ActivityNotFoundException) {
+            } catch (_: ActivityNotFoundException) {
                 Toast.makeText(this, R.string.toast_install_youtube_music, Toast.LENGTH_SHORT).show()
             }
         } else {
