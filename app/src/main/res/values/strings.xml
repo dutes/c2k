@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">C25K Custom Coach</string>
-    <string name="hint_run_seconds">Run interval (minutes)</string>
-    <string name="hint_walk_seconds">Walk interval (minutes)</string>
+    <string name="hint_run_seconds">Run interval (minutes &amp; seconds)</string>
+    <string name="hint_walk_seconds">Walk interval (minutes &amp; seconds)</string>
     <string name="hint_total_minutes">Total workout (minutes)</string>
     <string name="hint_cycle_count">Cycle count (optional)</string>
     <string name="helper_total_minutes">Leave blank if using cycle count</string>
@@ -38,7 +38,7 @@
     <string name="status_running">Workout running</string>
     <string name="status_stopped">Service stopped</string>
     <string name="error_positive_number">Please enter a positive number</string>
-    <string name="error_minutes_or_cycles">Provide total minutes or cycle count</string>
+    <string name="error_minutes_or_cycles">Enter total workout minutes</string>
     <string name="error_playlist_required">Select a YouTube Music playlist before starting</string>
     <string name="error_fix_fields">Please correct the highlighted fields</string>
     <string name="toast_playlist_playback_failed">Unable to start YouTube Music playback</string>
@@ -54,11 +54,12 @@
     <string name="segment_run_title">Run</string>
     <string name="segment_run_announcement">Run for %1$s</string>
     <string name="segment_run_halfway_encouragement">Half way there, keep it up!!</string>
-    <string name="segment_run_last_thirty_encouragement">This is the last 30 seconds - PUSH IT!</string>
+    <string name="segment_run_last_thirty_encouragement">30 seconds left.</string>
     <string name="segment_walk_title">Walk</string>
     <string name="segment_walk_announcement">Walk for %1$s</string>
     <string name="segment_cooldown_title">Cool-down</string>
     <string name="segment_cooldown_announcement">Cool-down walk for 5 minutes</string>
+    <string name="segment_cycle_intro">You are starting cycle %1$d out of %2$d.</string>
     <string name="event_workout_complete">Workout complete! Great job.</string>
     <string name="event_workout_stopped">Workout stopped</string>
     <plurals name="duration_minutes">

@@ -214,7 +214,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             lastThirtySecondsAnnouncementDelivered = true
         }
         previousRemainingSeconds = segment.durationSeconds
-        speak(segment.announcement)
+        announceSegment(segment)
         startSegmentTimer(remainingMillis)
         updateNotification()
         broadcastProgress()
@@ -525,6 +525,24 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             parts += resources.getQuantityString(R.plurals.duration_seconds, 0, 0)
         }
         return parts.joinToString(separator = " ")
+    }
+
+    private fun announceSegment(segment: IntervalSegment) {
+        if (segment.type == SegmentType.RUN) {
+            val cycleNumber = currentCycleNumber()
+            val totalRunSegments = totalCycles
+            if (cycleNumber > 0 && totalRunSegments > 0) {
+                val cycleAnnouncement = getString(
+                    R.string.segment_cycle_intro,
+                    cycleNumber,
+                    totalRunSegments
+                )
+                speak(cycleAnnouncement, flush = true)
+                speak(segment.announcement, flush = false)
+                return
+            }
+        }
+        speak(segment.announcement)
     }
 
     private fun updateNotification() {

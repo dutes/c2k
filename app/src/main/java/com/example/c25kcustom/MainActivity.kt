@@ -19,7 +19,9 @@ import androidx.annotation.AttrRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.c25kcustom.databinding.ActivityMainBinding
+import com.google.android.material.textfield.TextInputLayout
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
@@ -141,16 +143,16 @@ class MainActivity : AppCompatActivity() {
     private fun validateInputs(): Boolean {
         var valid = true
 
-        val runMinutes = binding.runMinutesInput.editText?.text?.toString()?.toIntOrNull()
-        if (runMinutes == null || runMinutes <= 0) {
+        val runSeconds = parseIntervalSeconds(binding.runMinutesInput)
+        if (runSeconds == null || runSeconds <= 0) {
             binding.runMinutesInput.error = getString(R.string.error_positive_number)
             valid = false
         } else {
             binding.runMinutesInput.error = null
         }
 
-        val walkMinutes = binding.walkMinutesInput.editText?.text?.toString()?.toIntOrNull()
-        if (walkMinutes == null || walkMinutes <= 0) {
+        val walkSeconds = parseIntervalSeconds(binding.walkMinutesInput)
+        if (walkSeconds == null || walkSeconds <= 0) {
             binding.walkMinutesInput.error = getString(R.string.error_positive_number)
             valid = false
         } else {
@@ -179,12 +181,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startIntervalService() {
-        val runMinutes = binding.runMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val walkMinutes = binding.walkMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val runSeconds = runMinutes * 60
-        val walkSeconds = walkMinutes * 60
+        val runSeconds = parseIntervalSeconds(binding.runMinutesInput) ?: 0
+        val walkSeconds = parseIntervalSeconds(binding.walkMinutesInput) ?: 0
         val totalMinutes = binding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val cycles = binding.cycleCountInput.editText?.toString()?.toIntOrNull() ?: 0
+        val cycles = binding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
         val includeWarmup = binding.warmupSwitch.isChecked
         val includeCooldown = binding.cooldownSwitch.isChecked
 
@@ -338,6 +338,18 @@ class MainActivity : AppCompatActivity() {
         val typedValue = TypedValue()
         theme.resolveAttribute(attr, typedValue, true)
         return typedValue.data
+    }
+
+    private fun parseIntervalSeconds(input: TextInputLayout): Int? {
+        val text = input.editText?.text?.toString()?.trim()
+        return parseMinutesToSeconds(text)
+    }
+
+    private fun parseMinutesToSeconds(value: String?): Int? {
+        val minutes = value?.toDoubleOrNull() ?: return null
+        if (minutes <= 0.0) return null
+        val seconds = (minutes * 60.0).roundToInt()
+        return seconds.coerceAtLeast(1)
     }
 
     companion object {
