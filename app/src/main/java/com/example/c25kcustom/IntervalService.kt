@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Binder
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.IBinder
@@ -27,6 +28,15 @@ import kotlin.collections.ArrayDeque
 import kotlin.math.min
 
 class IntervalService : Service(), TextToSpeech.OnInitListener {
+
+    inner class LocalBinder : Binder() {
+        val service: IntervalService = this@IntervalService
+    }
+
+    private val binder = LocalBinder()
+
+    var isWorkoutFinished = false
+        private set
 
     private data class IntervalSegment(
         val type: SegmentType,
@@ -53,8 +63,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     private lateinit var notificationManager: NotificationManager
     private var wakeLock: PowerManager.WakeLock? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    @Volatile
-    private var pendingStopAfterSpeech = false
     private val pendingUtterances = ArrayDeque<Pair<String, Boolean>>()
     private var halfwayAnnouncementDelivered = true
     private var lastThirtySecondsAnnouncementDelivered = true
@@ -68,19 +76,11 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         tts = TextToSpeech(this, this)
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
-
             override fun onDone(utteranceId: String?) {
                 abandonAudioFocus()
-                if (pendingStopAfterSpeech) {
-                    mainHandler.post { finalizeService(removeNotification = false) }
-                }
             }
-
             override fun onError(utteranceId: String?) {
                 abandonAudioFocus()
-                if (pendingStopAfterSpeech) {
-                    mainHandler.post { finalizeService(removeNotification = false) }
-                }
             }
         })
 
@@ -101,22 +101,15 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PAUSE -> {
-                pauseIntervals()
-            }
-            ACTION_RESUME -> {
-                resumeIntervals()
-            }
-            ACTION_STOP -> {
-                stopIntervals()
-            }
-            ACTION_START -> {
-                startIntervals(intent)
-            }
+            ACTION_PAUSE -> pauseIntervals()
+            ACTION_RESUME -> resumeIntervals()
+            ACTION_STOP -> stopIntervals()
+            ACTION_START -> startIntervals(intent)
+            ACTION_REQUEST_PROGRESS_UPDATE -> broadcastProgress()
             else -> {
                 // Ignore
             }
@@ -124,7 +117,12 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         return START_NOT_STICKY
     }
 
+    fun stopServiceAndWorkout() {
+        stopIntervals()
+    }
+
     private fun startIntervals(intent: Intent) {
+        isWorkoutFinished = false
         countdown?.cancel()
         val runSeconds = intent.getIntExtra(EXTRA_RUN_SECONDS, 0)
         val walkSeconds = intent.getIntExtra(EXTRA_WALK_SECONDS, 0)
@@ -151,7 +149,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         currentIndex = -1
         isPaused = false
         remainingMillis = 0L
-        pendingStopAfterSpeech = false
 
         val timeout = (totalWorkoutSeconds * 1000L) + 60000L // Workout duration + 1 minute buffer
         wakeLock?.let { if (!it.isHeld) it.acquire(timeout) }
@@ -166,7 +163,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun stopIntervals() {
-        pendingStopAfterSpeech = false
         isPaused = false
         tts?.stop()
         sendWorkoutStoppedBroadcast()
@@ -205,7 +201,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         }
         val segment = segments[currentIndex]
         remainingMillis = segment.durationSeconds * 1000L
-        pendingStopAfterSpeech = false
         if (segment.type == SegmentType.RUN) {
             halfwayAnnouncementDelivered = false
             lastThirtySecondsAnnouncementDelivered = false
@@ -250,11 +245,11 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun finishWorkout() {
+        isWorkoutFinished = true
         countdown?.cancel()
         isPaused = false
-        pendingStopAfterSpeech = false
         pauseMusic()
-        val spoke = speak(getString(R.string.notification_complete))
+        speak(getString(R.string.notification_complete))
         val completedNotification = buildNotification(
             title = getString(R.string.notification_title),
             content = getString(R.string.notification_complete),
@@ -263,11 +258,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         )
         notificationManager.notify(NOTIFICATION_ID, completedNotification)
         sendWorkoutFinishedBroadcast()
-        if (spoke) {
-            pendingStopAfterSpeech = true
-        } else {
-            finalizeService(removeNotification = false)
-        }
+        // Do not stop the service here. Wait for the activity to connect.
     }
 
     private fun broadcastProgress() {
@@ -334,7 +325,18 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun sendWorkoutFinishedBroadcast() {
-        val intent = Intent(ACTION_WORKOUT_FINISHED).setPackage(packageName)
+        val runSegments = segments.filter { it.type == SegmentType.RUN }
+        val walkSegments = segments.filter { it.type == SegmentType.WALK }
+        val runSeconds = runSegments.firstOrNull()?.durationSeconds ?: 0
+        val walkSeconds = walkSegments.firstOrNull()?.durationSeconds ?: 0
+        val cycles = runSegments.size
+
+        val intent = Intent(ACTION_WORKOUT_FINISHED)
+            .setPackage(packageName)
+            .putExtra(EXTRA_TOTAL_WORKOUT_SECONDS, totalWorkoutSeconds)
+            .putExtra(EXTRA_RUN_SECONDS, runSeconds)
+            .putExtra(EXTRA_WALK_SECONDS, walkSeconds)
+            .putExtra(EXTRA_CYCLE_COUNT, cycles)
         sendBroadcast(intent)
     }
 
@@ -715,7 +717,6 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
 
     private fun finalizeService(removeNotification: Boolean) {
         countdown?.cancel()
-        pendingStopAfterSpeech = false
         isPaused = false
         tts?.stop()
         abandonAudioFocus()
@@ -780,6 +781,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val ACTION_PROGRESS_UPDATE = "com.example.c25kcustom.action.PROGRESS_UPDATE"
         const val ACTION_WORKOUT_FINISHED = "com.example.c25kcustom.action.WORKOUT_FINISHED"
         const val ACTION_WORKOUT_STOPPED = "com.example.c25kcustom.action.WORKOUT_STOPPED"
+        const val ACTION_REQUEST_PROGRESS_UPDATE = "com.example.c25kcustom.action.REQUEST_PROGRESS_UPDATE"
 
         const val EXTRA_RUN_SECONDS = "extra_run_seconds"
         const val EXTRA_WALK_SECONDS = "extra_walk_seconds"

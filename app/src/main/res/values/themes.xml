@@ -1,15 +1,20 @@
 <resources>
-    <!--
-    Having a parent theme of "Theme.Material3.DayNight.NoActionBar" is great for compatibility.
-    However, for devices that support it, we can enable dynamic colors by using
-    "Theme.Material3.DynamicColors.DayNight" as the parent.
-    -->
-    <style name="Theme.C25KCustomCoach" parent="Theme.Material3.DayNight.NoActionBar">
-        <!--
-        If you want to force a specific color palette, you can define your custom colors here.
-        For example:
-        <item name="colorPrimary">@color/my_lilac</item>
-        <item name="colorSecondary">@color/my_other_color</item>
-        -->
+    <!-- Base application theme. -->
+    <style name="Theme.C25KCustomCoach" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/md_theme_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_onSecondaryContainer</item>
+        <!-- Tertiary brand color. -->
+        <item name="colorTertiary">@color/md_theme_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_onTertiaryContainer</item>
     </style>
 </resources>

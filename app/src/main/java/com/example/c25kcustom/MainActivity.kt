@@ -3,22 +3,31 @@ package com.example.c25kcustom
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.os.SystemClock
+import android.provider.CalendarContract
 import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.AttrRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.c25kcustom.databinding.ActivityMainBinding
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.textfield.TextInputLayout
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -32,6 +41,25 @@ class MainActivity : AppCompatActivity() {
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
     private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
+    private val prefs by lazy { getSharedPreferences("theme_prefs", MODE_PRIVATE) }
+    private var intervalService: IntervalService? = null
+    private var isBound = false
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as IntervalService.LocalBinder
+            intervalService = binder.service
+            isBound = true
+            if (intervalService?.isWorkoutFinished == true) {
+                handleWorkoutFinished(Intent(IntervalService.ACTION_WORKOUT_FINISHED))
+                intervalService?.stopServiceAndWorkout()
+            }
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            isBound = false
+        }
+    }
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
@@ -48,7 +76,7 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent) {
             when (intent.action) {
                 IntervalService.ACTION_PROGRESS_UPDATE -> handleProgressUpdate(intent)
-                IntervalService.ACTION_WORKOUT_FINISHED -> handleWorkoutFinished()
+                IntervalService.ACTION_WORKOUT_FINISHED -> handleWorkoutFinished(intent)
                 IntervalService.ACTION_WORKOUT_STOPPED -> handleWorkoutStopped()
                 "android.media.VOLUME_CHANGED_ACTION", "android.media.STREAM_MUTE_CHANGED_ACTION" -> updateMusicPlayPauseButton()
             }
@@ -57,22 +85,58 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val useDynamicColor = prefs.getBoolean("use_dynamic_color", true)
+        if (useDynamicColor) {
+            DynamicColors.applyToActivityIfAvailable(this)
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        setSupportActionBar(binding.toolbar)
 
         currentState = savedInstanceState?.getString(STATE_UI_STATE)?.let { stored ->
             runCatching { UiState.valueOf(stored) }.getOrDefault(UiState.SETUP)
         } ?: UiState.SETUP
-        isWorkoutPaused = savedInstanceState?.getBoolean(STATE_WORKOUT_PAUSED) ?: false
+        isWorkoutPaused = savedInstanceState?.getBoolean("state_workout_paused") ?: false
 
         setupListeners()
+        updateCycleCountVisibility()
         showState(currentState)
         updatePauseButton()
         requestNotificationPermission()
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_toggle_cycle_count -> {
+                val show = !prefs.getBoolean("show_cycle_count", false)
+                prefs.edit().putBoolean("show_cycle_count", show).apply()
+                updateCycleCountVisibility()
+                true
+            }
+            R.id.action_toggle_dynamic_color -> {
+                val useDynamic = !prefs.getBoolean("use_dynamic_color", true)
+                prefs.edit().putBoolean("use_dynamic_color", useDynamic).apply()
+                recreate()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     override fun onStart() {
         super.onStart()
+        Intent(this, IntervalService::class.java).also { intent ->
+            bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
+
         if (!receiverRegistered) {
             val filter = IntentFilter().apply {
                 addAction(IntervalService.ACTION_PROGRESS_UPDATE)
@@ -89,11 +153,18 @@ class MainActivity : AppCompatActivity() {
             )
             receiverRegistered = true
         }
+        if (currentState == UiState.IN_PROGRESS) {
+            sendBroadcast(Intent(this, IntervalService::class.java).setAction(IntervalService.ACTION_REQUEST_PROGRESS_UPDATE))
+        }
         updateMusicPlayPauseButton()
     }
 
     override fun onStop() {
         super.onStop()
+        if (isBound) {
+            unbindService(connection)
+            isBound = false
+        }
         if (receiverRegistered) {
             runCatching { unregisterReceiver(progressReceiver) }
             receiverRegistered = false
@@ -103,7 +174,7 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_UI_STATE, currentState.name)
-        outState.putBoolean(STATE_WORKOUT_PAUSED, isWorkoutPaused)
+        outState.putBoolean("state_workout_paused", isWorkoutPaused)
     }
 
     private fun setupListeners() {
@@ -120,8 +191,6 @@ class MainActivity : AppCompatActivity() {
         binding.musicPreviousButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_PREVIOUS) }
         binding.musicPlayPauseButton.setOnClickListener {
             sendMusicControl(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-            // It can take a moment for the system to update the isMusicActive state,
-            // so we optimistically update the UI.
             binding.musicPlayPauseButton.postDelayed({ updateMusicPlayPauseButton() }, 200)
         }
         binding.musicNextButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_NEXT) }
@@ -132,7 +201,7 @@ class MainActivity : AppCompatActivity() {
         if (launchIntent != null) {
             try {
                 startActivity(launchIntent)
-            } catch (_: ActivityNotFoundException) {
+            } catch (e: ActivityNotFoundException) {
                 Toast.makeText(this, R.string.toast_install_youtube_music, Toast.LENGTH_SHORT).show()
             }
         } else {
@@ -143,21 +212,8 @@ class MainActivity : AppCompatActivity() {
     private fun validateInputs(): Boolean {
         var valid = true
 
-        val runSeconds = parseIntervalSeconds(binding.runMinutesInput)
-        if (runSeconds == null || runSeconds <= 0) {
-            binding.runMinutesInput.error = getString(R.string.error_positive_number)
-            valid = false
-        } else {
-            binding.runMinutesInput.error = null
-        }
-
-        val walkSeconds = parseIntervalSeconds(binding.walkMinutesInput)
-        if (walkSeconds == null || walkSeconds <= 0) {
-            binding.walkMinutesInput.error = getString(R.string.error_positive_number)
-            valid = false
-        } else {
-            binding.walkMinutesInput.error = null
-        }
+        if (!validateInterval(binding.runMinutesInput)) valid = false
+        if (!validateInterval(binding.walkMinutesInput)) valid = false
 
         val totalMinutesText = binding.totalMinutesInput.editText?.text?.toString()
         val cyclesText = binding.cycleCountInput.editText?.text?.toString()
@@ -178,6 +234,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         return valid
+    }
+
+    private fun validateInterval(input: TextInputLayout): Boolean {
+        val text = input.editText?.text?.toString()?.trim()
+        val minutes = text?.toDoubleOrNull()
+        if (minutes == null || minutes <= 0) {
+            input.error = getString(R.string.error_positive_number)
+            return false
+        }
+
+        if ((minutes * 2.0).rem(1.0) != 0.0) {
+            input.error = getString(R.string.error_invalid_increment)
+            return false
+        }
+
+        input.error = null
+        return true
     }
 
     private fun startIntervalService() {
@@ -239,6 +312,7 @@ class MainActivity : AppCompatActivity() {
             0
         }
         binding.totalProgressIndicator.progress = totalProgress
+        binding.totalProgressIndicator.setIndicatorColor(getColorFromAttr(com.google.android.material.R.attr.colorPrimary))
 
         binding.intervalRemainingValue.text = formatSeconds(remaining)
         binding.intervalLabel.text = when {
@@ -264,11 +338,16 @@ class MainActivity : AppCompatActivity() {
         showState(UiState.IN_PROGRESS)
     }
 
-    private fun handleWorkoutFinished() {
-        Toast.makeText(this, R.string.event_workout_complete, Toast.LENGTH_LONG).show()
+    private fun handleWorkoutFinished(intent: Intent) {
+        val totalWorkoutSeconds = intent.getIntExtra(IntervalService.EXTRA_TOTAL_WORKOUT_SECONDS, 0)
+        val runSeconds = intent.getIntExtra(IntervalService.EXTRA_RUN_SECONDS, 0)
+        val walkSeconds = intent.getIntExtra(IntervalService.EXTRA_WALK_SECONDS, 0)
+        val cycles = intent.getIntExtra(IntervalService.EXTRA_CYCLE_COUNT, 0)
+
         isWorkoutPaused = false
         updatePauseButton()
         showState(UiState.SETUP)
+        showCalendarDialog(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
     }
 
     private fun handleWorkoutStopped() {
@@ -342,19 +421,54 @@ class MainActivity : AppCompatActivity() {
 
     private fun parseIntervalSeconds(input: TextInputLayout): Int? {
         val text = input.editText?.text?.toString()?.trim()
-        return parseMinutesToSeconds(text)
+        val minutes = text?.toDoubleOrNull()
+        if (minutes == null || minutes <= 0) return null
+        return (minutes * 60.0).roundToInt()
     }
 
-    private fun parseMinutesToSeconds(value: String?): Int? {
-        val minutes = value?.toDoubleOrNull() ?: return null
-        if (minutes <= 0.0) return null
-        val seconds = (minutes * 60.0).roundToInt()
-        return seconds.coerceAtLeast(1)
+    private fun showCalendarDialog(
+        totalWorkoutSeconds: Int,
+        runSeconds: Int,
+        walkSeconds: Int,
+        cycles: Int
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle("Workout Complete!")
+            .setMessage("Would you like to add this workout to your calendar?")
+            .setPositiveButton("Yes") { _, _ ->
+                launchCalendarIntent(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+
+    private fun launchCalendarIntent(
+        totalWorkoutSeconds: Int,
+        runSeconds: Int,
+        walkSeconds: Int,
+        cycles: Int
+    ) {
+        val description = """
+            Total Workout: ${formatSeconds(totalWorkoutSeconds)}
+            Cycles: $cycles
+            Run Interval: ${formatSeconds(runSeconds)}
+            Walk Interval: ${formatSeconds(walkSeconds)}
+        """.trimIndent()
+
+        val intent = Intent(Intent.ACTION_INSERT)
+            .setData(CalendarContract.Events.CONTENT_URI)
+            .putExtra(CalendarContract.Events.TITLE, "C25K Workout")
+            .putExtra(CalendarContract.Events.DESCRIPTION, description)
+        startActivity(intent)
+    }
+
+    private fun updateCycleCountVisibility() {
+        val show = prefs.getBoolean("show_cycle_count", false)
+        binding.cycleCountInput.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     companion object {
         private const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
         private const val STATE_UI_STATE = "state_ui"
-        private const val STATE_WORKOUT_PAUSED = "state_workout_paused"
     }
 }
