@@ -144,13 +144,16 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             includeWarmup = includeWarmup,
             includeCooldown = includeCooldown
         )
-        totalWorkoutSeconds = segments.sumOf { it.durationSeconds }
+        totalWorkoutSeconds = segments
+            .filter { it.type == SegmentType.RUN || it.type == SegmentType.WALK }
+            .sumOf { it.durationSeconds }
         totalCycles = segments.count { it.type == SegmentType.RUN }
         currentIndex = -1
         isPaused = false
         remainingMillis = 0L
 
-        val timeout = (totalWorkoutSeconds * 1000L) + 60000L // Workout duration + 1 minute buffer
+        val totalSegmentSeconds = segments.sumOf { it.durationSeconds }
+        val timeout = (totalSegmentSeconds * 1000L) + 60000L // Workout duration + 1 minute buffer
         wakeLock?.let { if (!it.isHeld) it.acquire(timeout) }
 
         val notification = buildNotification(
@@ -280,12 +283,20 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             0
         }
 
-        val completedSegmentsDuration = if (currentIndex > 0) {
-            segments.subList(0, currentIndex).sumOf { it.durationSeconds }
+        val completedWorkoutDuration = if (currentIndex > 0) {
+            segments
+                .subList(0, currentIndex)
+                .filter { it.type == SegmentType.RUN || it.type == SegmentType.WALK }
+                .sumOf { it.durationSeconds }
         } else {
             0
         }
-        val totalElapsed = completedSegmentsDuration + elapsedSeconds
+        val currentWorkoutContribution = if (segment != null && (segment.type == SegmentType.RUN || segment.type == SegmentType.WALK)) {
+            elapsedSeconds
+        } else {
+            0
+        }
+        val totalElapsed = completedWorkoutDuration + currentWorkoutContribution
 
         val intent = Intent(ACTION_PROGRESS_UPDATE)
             .setPackage(packageName)
@@ -354,8 +365,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         includeCooldown: Boolean
     ): List<IntervalSegment> {
         val result = mutableListOf<IntervalSegment>()
-        val warmupSeconds = if (includeWarmup) 5 * 60 else 0
-        val cooldownSeconds = if (includeCooldown) 5 * 60 else 0
+        val warmupSeconds = if (includeWarmup) 3 * 60 else 0
+        val cooldownSeconds = if (includeCooldown) 3 * 60 else 0
 
         if (includeWarmup) {
             result.add(
