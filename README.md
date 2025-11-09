@@ -5,7 +5,7 @@ C25K Custom Coach is a customizable Couch-to-5K training companion. Set your pre
 ## Features
 - Adjustable run and walk interval lengths.
 - Configure either a total workout duration or an explicit number of run/walk cycles.
-- Optional five-minute warm-up and cool-down walks.
+- Optional three-minute warm-up and cool-down walks.
 - Foreground service with a persistent notification offering pause, resume, and stop actions.
 - Text-to-Speech prompts using the device locale while respectfully ducking other audio playback.
 - Works when the device is locked, and exposes controls directly in the notification shade.

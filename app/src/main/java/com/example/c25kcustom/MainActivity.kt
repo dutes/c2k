@@ -17,34 +17,73 @@ import android.os.SystemClock
 import android.provider.CalendarContract
 import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.AttrRes
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.c25kcustom.data.WorkoutEntity
+import com.example.c25kcustom.data.WorkoutRepository
 import com.example.c25kcustom.databinding.ActivityMainBinding
+import com.example.c25kcustom.databinding.ItemCalendarDayBinding
+import com.example.c25kcustom.databinding.PageCalendarBinding
+import com.example.c25kcustom.databinding.PageTotalsBinding
+import com.example.c25kcustom.databinding.PageWorkoutBinding
 import com.google.android.material.color.DynamicColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.tabs.TabLayoutMediator
 import com.google.android.material.textfield.TextInputLayout
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private enum class UiState { SETUP, IN_PROGRESS }
 
     private lateinit var binding: ActivityMainBinding
+    private var workoutBinding: PageWorkoutBinding? = null
+    private var totalsBinding: PageTotalsBinding? = null
+    private var calendarBinding: PageCalendarBinding? = null
+    private lateinit var pagerAdapter: MainPagerAdapter
+
     private var receiverRegistered = false
     private var currentState: UiState = UiState.SETUP
     private var isWorkoutPaused = false
+    private var currentMonth: YearMonth = YearMonth.now()
+    private var latestWorkouts: List<WorkoutEntity> = emptyList()
+
     private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
     private val prefs by lazy { getSharedPreferences("theme_prefs", MODE_PRIVATE) }
+    private val workoutHistoryPrefs by lazy { getSharedPreferences("workout_history", MODE_PRIVATE) }
+    private val repository by lazy { WorkoutRepository.getInstance(applicationContext) }
+
     private var intervalService: IntervalService? = null
     private var isBound = false
+
+    private val calendarAdapter = CalendarDayAdapter { cell ->
+        if (cell.dayNumber != null && cell.workouts.isNotEmpty()) {
+            showCalendarDetail(cell)
+        } else if (cell.dayNumber != null) {
+            Toast.makeText(this, R.string.calendar_no_workouts, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -79,7 +118,8 @@ class MainActivity : AppCompatActivity() {
                 IntervalService.ACTION_PROGRESS_UPDATE -> handleProgressUpdate(intent)
                 IntervalService.ACTION_WORKOUT_FINISHED -> handleWorkoutFinished(intent)
                 IntervalService.ACTION_WORKOUT_STOPPED -> handleWorkoutStopped()
-                "android.media.VOLUME_CHANGED_ACTION", "android.media.STREAM_MUTE_CHANGED_ACTION" -> updateMusicPlayPauseButton()
+                "android.media.VOLUME_CHANGED_ACTION", "android.media.STREAM_MUTE_CHANGED_ACTION" ->
+                    updateMusicPlayPauseButton()
             }
         }
     }
@@ -100,18 +140,25 @@ class MainActivity : AppCompatActivity() {
         currentState = savedInstanceState?.getString(STATE_UI_STATE)?.let { stored ->
             runCatching { UiState.valueOf(stored) }.getOrDefault(UiState.SETUP)
         } ?: UiState.SETUP
-        isWorkoutPaused = savedInstanceState?.getBoolean("state_workout_paused") ?: false
+        isWorkoutPaused = savedInstanceState?.getBoolean(STATE_WORKOUT_PAUSED) ?: false
+        currentMonth = savedInstanceState?.getString(STATE_CURRENT_MONTH)?.let {
+            runCatching { YearMonth.parse(it) }.getOrElse { YearMonth.now() }
+        } ?: YearMonth.now()
 
-        setupListeners()
-        updateCycleCountVisibility()
-        showState(currentState)
-        updatePauseButton()
+        setupPager()
         requestNotificationPermission()
+        observeWorkoutHistory()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val hasWorkout = getLastWorkoutSummary() != null
+        menu.findItem(R.id.action_add_last_workout_to_calendar)?.isEnabled = hasWorkout
+        return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -126,6 +173,20 @@ class MainActivity : AppCompatActivity() {
                 val useDynamic = !prefs.getBoolean("use_dynamic_color", true)
                 prefs.edit { putBoolean("use_dynamic_color", useDynamic) }
                 recreate()
+                true
+            }
+            R.id.action_add_last_workout_to_calendar -> {
+                val lastWorkout = getLastWorkoutSummary()
+                if (lastWorkout == null) {
+                    Toast.makeText(this, R.string.toast_no_recorded_workout, Toast.LENGTH_SHORT).show()
+                } else {
+                    launchCalendarIntent(
+                        lastWorkout.totalWorkoutSeconds,
+                        lastWorkout.runSeconds,
+                        lastWorkout.walkSeconds,
+                        lastWorkout.cycles
+                    )
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -158,6 +219,7 @@ class MainActivity : AppCompatActivity() {
             sendBroadcast(Intent(this, IntervalService::class.java).setAction(IntervalService.ACTION_REQUEST_PROGRESS_UPDATE))
         }
         updateMusicPlayPauseButton()
+        invalidateOptionsMenu()
     }
 
     override fun onStop() {
@@ -175,10 +237,40 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_UI_STATE, currentState.name)
-        outState.putBoolean("state_workout_paused", isWorkoutPaused)
+        outState.putBoolean(STATE_WORKOUT_PAUSED, isWorkoutPaused)
+        outState.putString(STATE_CURRENT_MONTH, currentMonth.toString())
     }
 
-    private fun setupListeners() {
+    private fun setupPager() {
+        pagerAdapter = MainPagerAdapter()
+        binding.viewPager.adapter = pagerAdapter
+        binding.viewPager.offscreenPageLimit = 2
+        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+            tab.text = when (position) {
+                PAGE_CALENDAR -> getString(R.string.tab_title_calendar)
+                PAGE_WORKOUT -> getString(R.string.tab_title_workout)
+                PAGE_TOTALS -> getString(R.string.tab_title_totals)
+                else -> null
+            }
+        }.attach()
+        binding.viewPager.setCurrentItem(PAGE_WORKOUT, false)
+    }
+
+    private fun observeWorkoutHistory() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repository.workouts.collect { workouts ->
+                    latestWorkouts = workouts
+                    renderTotals()
+                    renderCalendar()
+                    invalidateOptionsMenu()
+                }
+            }
+        }
+    }
+
+    private fun setupWorkoutPage(binding: PageWorkoutBinding) {
+        workoutBinding = binding
         binding.selectPlaylistButton.setOnClickListener { handleSelectPlaylistClick() }
         binding.startButton.setOnClickListener {
             if (validateInputs()) {
@@ -195,6 +287,33 @@ class MainActivity : AppCompatActivity() {
             binding.musicPlayPauseButton.postDelayed({ updateMusicPlayPauseButton() }, 200)
         }
         binding.musicNextButton.setOnClickListener { sendMusicControl(KeyEvent.KEYCODE_MEDIA_NEXT) }
+
+        updateCycleCountVisibility()
+        showState(currentState)
+        updatePauseButton()
+        updateMusicPlayPauseButton()
+    }
+
+    private fun setupTotalsPage(binding: PageTotalsBinding) {
+        totalsBinding = binding
+        binding.exportButton.setOnClickListener { exportWorkouts() }
+        renderTotals()
+    }
+
+    private fun setupCalendarPage(binding: PageCalendarBinding) {
+        calendarBinding = binding
+        binding.calendarRecycler.layoutManager = GridLayoutManager(this, 7)
+        binding.calendarRecycler.adapter = calendarAdapter
+        binding.calendarRecycler.setHasFixedSize(true)
+        binding.previousMonthButton.setOnClickListener {
+            currentMonth = currentMonth.minusMonths(1)
+            renderCalendar()
+        }
+        binding.nextMonthButton.setOnClickListener {
+            currentMonth = currentMonth.plusMonths(1)
+            renderCalendar()
+        }
+        renderCalendar()
     }
 
     private fun handleSelectPlaylistClick() {
@@ -211,6 +330,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun validateInputs(): Boolean {
+        val binding = workoutBinding ?: return false
         var valid = true
 
         if (!validateInterval(binding.runMinutesInput)) valid = false
@@ -255,12 +375,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startIntervalService() {
-        val runSeconds = parseIntervalSeconds(binding.runMinutesInput) ?: 0
-        val walkSeconds = parseIntervalSeconds(binding.walkMinutesInput) ?: 0
-        val totalMinutes = binding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val cycles = binding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val includeWarmup = binding.warmupSwitch.isChecked
-        val includeCooldown = binding.cooldownSwitch.isChecked
+        val pageBinding = workoutBinding ?: return
+        val runSeconds = parseIntervalSeconds(pageBinding.runMinutesInput) ?: 0
+        val walkSeconds = parseIntervalSeconds(pageBinding.walkMinutesInput) ?: 0
+        val totalMinutes = pageBinding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val cycles = pageBinding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val includeWarmup = pageBinding.warmupSwitch.isChecked
+        val includeCooldown = pageBinding.cooldownSwitch.isChecked
 
         val intent = Intent(this, IntervalService::class.java).apply {
             action = IntervalService.ACTION_START
@@ -276,6 +397,7 @@ class MainActivity : AppCompatActivity() {
         isWorkoutPaused = false
         updatePauseButton()
         showState(UiState.IN_PROGRESS)
+        binding.viewPager.setCurrentItem(PAGE_WORKOUT, true)
     }
 
     private fun sendIntervalAction(action: String) {
@@ -288,6 +410,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleProgressUpdate(intent: Intent) {
+        val binding = workoutBinding ?: return
         val intervalTitle = intent.getStringExtra(IntervalService.EXTRA_INTERVAL_TITLE)
         val elapsed = intent.getIntExtra(IntervalService.EXTRA_INTERVAL_ELAPSED_SECONDS, 0)
         val remaining = intent.getIntExtra(IntervalService.EXTRA_INTERVAL_REMAINING_SECONDS, 0)
@@ -337,6 +460,7 @@ class MainActivity : AppCompatActivity() {
 
         updatePauseButton()
         showState(UiState.IN_PROGRESS)
+        this.binding.viewPager.setCurrentItem(PAGE_WORKOUT, true)
     }
 
     private fun handleWorkoutFinished(intent: Intent) {
@@ -344,10 +468,35 @@ class MainActivity : AppCompatActivity() {
         val runSeconds = intent.getIntExtra(IntervalService.EXTRA_RUN_SECONDS, 0)
         val walkSeconds = intent.getIntExtra(IntervalService.EXTRA_WALK_SECONDS, 0)
         val cycles = intent.getIntExtra(IntervalService.EXTRA_CYCLE_COUNT, 0)
+        val includeWarmup = intent.getBooleanExtra(IntervalService.EXTRA_INCLUDE_WARMUP, false)
+        val includeCooldown = intent.getBooleanExtra(IntervalService.EXTRA_INCLUDE_COOLDOWN, false)
+        val warmupSeconds = intent.getIntExtra(IntervalService.EXTRA_WARMUP_SECONDS, 0)
+        val cooldownSeconds = intent.getIntExtra(IntervalService.EXTRA_COOLDOWN_SECONDS, 0)
+
+        saveLastWorkoutSummary(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
+        invalidateOptionsMenu()
+
+        lifecycleScope.launch {
+            if (totalWorkoutSeconds > 0 && runSeconds > 0 && walkSeconds > 0) {
+                val entity = WorkoutEntity(
+                    timestamp = System.currentTimeMillis(),
+                    totalSeconds = totalWorkoutSeconds,
+                    runIntervalSeconds = runSeconds,
+                    walkIntervalSeconds = walkSeconds,
+                    cycles = cycles,
+                    includeWarmup = includeWarmup,
+                    includeCooldown = includeCooldown,
+                    warmupSeconds = warmupSeconds,
+                    cooldownSeconds = cooldownSeconds
+                )
+                repository.recordWorkout(entity)
+            }
+        }
 
         isWorkoutPaused = false
         updatePauseButton()
         showState(UiState.SETUP)
+        binding.viewPager.setCurrentItem(PAGE_WORKOUT, true)
         showCalendarDialog(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
     }
 
@@ -365,8 +514,25 @@ class MainActivity : AppCompatActivity() {
         return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
     }
 
+    private fun formatDurationLong(seconds: Int): String {
+        val safeSeconds = seconds.coerceAtLeast(0)
+        val hours = safeSeconds / 3600
+        val minutes = (safeSeconds % 3600) / 60
+        val secs = safeSeconds % 60
+        val builder = StringBuilder()
+        if (hours > 0) {
+            builder.append(hours).append("h ")
+        }
+        builder.append(minutes).append("m")
+        if (secs > 0) {
+            builder.append(" ").append(secs).append("s")
+        }
+        return builder.toString().trim()
+    }
+
     private fun showState(state: UiState) {
         currentState = state
+        val binding = workoutBinding ?: return
         val target = if (state == UiState.SETUP) 0 else 1
         if (binding.stateSwitcher.displayedChild != target) {
             binding.stateSwitcher.displayedChild = target
@@ -377,6 +543,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePauseButton() {
+        val binding = workoutBinding ?: return
         binding.pauseResumeButton.text = if (isWorkoutPaused) {
             getString(R.string.action_resume_workout)
         } else {
@@ -385,6 +552,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateMusicPlayPauseButton() {
+        val binding = workoutBinding ?: return
         val isPlaying = audioManager.isMusicActive
         val icon = if (isPlaying) {
             android.R.drawable.ic_media_pause
@@ -433,13 +601,13 @@ class MainActivity : AppCompatActivity() {
         walkSeconds: Int,
         cycles: Int
     ) {
-        AlertDialog.Builder(this)
-            .setTitle("Workout Complete!")
-            .setMessage("Would you like to add this workout to your calendar?")
-            .setPositiveButton("Yes") { _, _ ->
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.dialog_calendar_title)
+            .setMessage(R.string.dialog_calendar_message)
+            .setPositiveButton(R.string.dialog_calendar_positive) { _, _ ->
                 launchCalendarIntent(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
             }
-            .setNegativeButton("No", null)
+            .setNegativeButton(R.string.dialog_calendar_negative, null)
             .show()
     }
 
@@ -460,16 +628,265 @@ class MainActivity : AppCompatActivity() {
             .setData(CalendarContract.Events.CONTENT_URI)
             .putExtra(CalendarContract.Events.TITLE, "C25K Workout")
             .putExtra(CalendarContract.Events.DESCRIPTION, description)
-        startActivity(intent)
+        try {
+            startActivity(intent)
+        } catch (error: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.toast_calendar_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun saveLastWorkoutSummary(
+        totalWorkoutSeconds: Int,
+        runSeconds: Int,
+        walkSeconds: Int,
+        cycles: Int
+    ) {
+        if (totalWorkoutSeconds <= 0) return
+        workoutHistoryPrefs.edit {
+            putInt(KEY_LAST_TOTAL_SECONDS, totalWorkoutSeconds)
+            putInt(KEY_LAST_RUN_SECONDS, runSeconds)
+            putInt(KEY_LAST_WALK_SECONDS, walkSeconds)
+            putInt(KEY_LAST_CYCLES, cycles)
+        }
+    }
+
+    private fun getLastWorkoutSummary(): WorkoutSummary? {
+        val totalSeconds = workoutHistoryPrefs.getInt(KEY_LAST_TOTAL_SECONDS, -1)
+        if (totalSeconds <= 0) return null
+        val runSeconds = workoutHistoryPrefs.getInt(KEY_LAST_RUN_SECONDS, -1)
+        val walkSeconds = workoutHistoryPrefs.getInt(KEY_LAST_WALK_SECONDS, -1)
+        val cycles = workoutHistoryPrefs.getInt(KEY_LAST_CYCLES, -1)
+        if (runSeconds < 0 || walkSeconds < 0 || cycles < 0) return null
+        return WorkoutSummary(totalSeconds, runSeconds, walkSeconds, cycles)
     }
 
     private fun updateCycleCountVisibility() {
+        val binding = workoutBinding ?: return
         val show = prefs.getBoolean("show_cycle_count", false)
         binding.cycleCountInput.visibility = if (show) View.VISIBLE else View.GONE
     }
 
+    private fun exportWorkouts() {
+        if (latestWorkouts.isEmpty()) {
+            Toast.makeText(this, R.string.toast_no_workouts_to_export, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
+        val zone = ZoneId.systemDefault()
+        val csv = buildString {
+            appendLine("Date,Active Seconds,Run Seconds,Walk Seconds,Cycles,Warmup Seconds,Cooldown Seconds")
+            latestWorkouts.forEach { workout ->
+                val date = Instant.ofEpochMilli(workout.timestamp).atZone(zone).toLocalDate()
+                append(date.format(formatter)).append(',')
+                append(workout.totalSeconds).append(',')
+                append(workout.runIntervalSeconds * workout.cycles).append(',')
+                append(workout.walkIntervalSeconds * workout.cycles).append(',')
+                append(workout.cycles).append(',')
+                append(workout.warmupSeconds).append(',')
+                append(workout.cooldownSeconds).append('\n')
+            }
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.export_share_title))
+            putExtra(Intent.EXTRA_TEXT, csv)
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.export_share_title)))
+    }
+
+    private fun renderTotals() {
+        val binding = totalsBinding ?: return
+        val workouts = latestWorkouts
+        val totalWorkouts = workouts.size
+        val totalRunSeconds = workouts.sumOf { it.runIntervalSeconds * it.cycles }
+        val totalWalkSeconds = workouts.sumOf { it.walkIntervalSeconds * it.cycles }
+        val totalActiveSeconds = workouts.sumOf { it.totalSeconds }
+        val averageCycles = if (totalWorkouts > 0) {
+            workouts.sumOf { it.cycles }.toDouble() / totalWorkouts
+        } else {
+            0.0
+        }
+        binding.totalWorkoutsValue.text = totalWorkouts.toString()
+        binding.totalRunTimeValue.text = formatDurationLong(totalRunSeconds)
+        binding.totalWalkTimeValue.text = formatDurationLong(totalWalkSeconds)
+        binding.totalWorkoutTimeValue.text = formatDurationLong(totalActiveSeconds)
+        binding.averageCyclesValue.text = String.format(Locale.getDefault(), "%.1f", averageCycles)
+    }
+
+    private fun renderCalendar() {
+        val binding = calendarBinding ?: return
+        binding.monthLabel.text = formatMonthLabel(currentMonth)
+        val cells = buildCalendarCells(currentMonth, latestWorkouts)
+        calendarAdapter.submitList(cells)
+    }
+
+    private fun formatMonthLabel(month: YearMonth): String {
+        val monthName = month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+        return "$monthName ${month.year}"
+    }
+
+    private fun buildCalendarCells(month: YearMonth, workouts: List<WorkoutEntity>): List<CalendarCell> {
+        val firstDay = month.atDay(1)
+        val daysInMonth = month.lengthOfMonth()
+        val zone = ZoneId.systemDefault()
+        val grouped = workouts.groupBy { workout ->
+            Instant.ofEpochMilli(workout.timestamp).atZone(zone).toLocalDate()
+        }
+        val leadingEmpty = (firstDay.dayOfWeek.value % 7)
+        val cells = mutableListOf<CalendarCell>()
+        repeat(leadingEmpty) {
+            cells.add(CalendarCell(null, emptyList()))
+        }
+        for (day in 1..daysInMonth) {
+            val date = month.atDay(day)
+            val dayWorkouts = grouped[date].orEmpty()
+            cells.add(CalendarCell(day, dayWorkouts))
+        }
+        while (cells.size % 7 != 0) {
+            cells.add(CalendarCell(null, emptyList()))
+        }
+        return cells
+    }
+
+    private fun showCalendarDetail(cell: CalendarCell) {
+        val day = cell.dayNumber ?: return
+        val date = currentMonth.atDay(day)
+        if (cell.workouts.isEmpty()) {
+            Toast.makeText(this, R.string.calendar_no_workouts, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+        val message = buildString {
+            append(date.format(formatter))
+            appendLine()
+            appendLine()
+            cell.workouts.forEachIndexed { index, workout ->
+                appendLine(getString(R.string.calendar_detail_total, formatDurationLong(workout.totalSeconds)))
+                appendLine(getString(R.string.calendar_detail_cycles, workout.cycles))
+                appendLine(getString(R.string.calendar_detail_run, formatSeconds(workout.runIntervalSeconds)))
+                appendLine(getString(R.string.calendar_detail_walk, formatSeconds(workout.walkIntervalSeconds)))
+                if (workout.includeWarmup || workout.includeCooldown) {
+                    val warmup = if (workout.includeWarmup) formatDurationLong(workout.warmupSeconds) else formatDurationLong(0)
+                    val cooldown = if (workout.includeCooldown) formatDurationLong(workout.cooldownSeconds) else formatDurationLong(0)
+                    appendLine(getString(R.string.calendar_detail_warmup_cooldown, warmup, cooldown))
+                } else {
+                    appendLine(getString(R.string.calendar_detail_no_warmup_cooldown))
+                }
+                if (index < cell.workouts.size - 1) {
+                    appendLine()
+                }
+            }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.calendar_dialog_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private inner class MainPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        override fun getItemCount(): Int = 3
+
+        override fun getItemViewType(position: Int): Int = position
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            val inflater = LayoutInflater.from(parent.context)
+            return when (viewType) {
+                PAGE_CALENDAR -> {
+                    val binding = PageCalendarBinding.inflate(inflater, parent, false)
+                    setupCalendarPage(binding)
+                    CalendarViewHolder(binding)
+                }
+                PAGE_TOTALS -> {
+                    val binding = PageTotalsBinding.inflate(inflater, parent, false)
+                    setupTotalsPage(binding)
+                    TotalsViewHolder(binding)
+                }
+                else -> {
+                    val binding = PageWorkoutBinding.inflate(inflater, parent, false)
+                    setupWorkoutPage(binding)
+                    WorkoutViewHolder(binding)
+                }
+            }
+        }
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            // No-op
+        }
+    }
+
+    private inner class WorkoutViewHolder(val binding: PageWorkoutBinding) : RecyclerView.ViewHolder(binding.root)
+
+    private inner class TotalsViewHolder(val binding: PageTotalsBinding) : RecyclerView.ViewHolder(binding.root)
+
+    private inner class CalendarViewHolder(val binding: PageCalendarBinding) : RecyclerView.ViewHolder(binding.root)
+
+    private inner class CalendarDayAdapter(
+        private val onDaySelected: (CalendarCell) -> Unit
+    ) : RecyclerView.Adapter<CalendarDayAdapter.DayViewHolder>() {
+
+        private var cells: List<CalendarCell> = emptyList()
+
+        inner class DayViewHolder(private val binding: ItemCalendarDayBinding) : RecyclerView.ViewHolder(binding.root) {
+            fun bind(cell: CalendarCell) {
+                if (cell.dayNumber != null) {
+                    binding.dayNumber.visibility = View.VISIBLE
+                    binding.dayNumber.text = cell.dayNumber.toString()
+                    val hasWorkout = cell.workouts.isNotEmpty()
+                    binding.workoutIndicator.visibility = if (hasWorkout) View.VISIBLE else View.GONE
+                    binding.root.isEnabled = true
+                    binding.root.alpha = if (hasWorkout) 1f else 0.6f
+                    binding.root.setOnClickListener {
+                        onDaySelected(cell)
+                    }
+                } else {
+                    binding.dayNumber.visibility = View.INVISIBLE
+                    binding.dayNumber.text = ""
+                    binding.workoutIndicator.visibility = View.GONE
+                    binding.root.isEnabled = false
+                    binding.root.alpha = 0.3f
+                    binding.root.setOnClickListener(null)
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DayViewHolder {
+            val binding = ItemCalendarDayBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            return DayViewHolder(binding)
+        }
+
+        override fun onBindViewHolder(holder: DayViewHolder, position: Int) {
+            holder.bind(cells[position])
+        }
+
+        override fun getItemCount(): Int = cells.size
+
+        fun submitList(newCells: List<CalendarCell>) {
+            cells = newCells
+            notifyDataSetChanged()
+        }
+    }
+
+    private data class CalendarCell(val dayNumber: Int?, val workouts: List<WorkoutEntity>)
+
     companion object {
         private const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
         private const val STATE_UI_STATE = "state_ui"
+        private const val STATE_WORKOUT_PAUSED = "state_workout_paused"
+        private const val STATE_CURRENT_MONTH = "state_current_month"
+        private const val KEY_LAST_TOTAL_SECONDS = "last_total_seconds"
+        private const val KEY_LAST_RUN_SECONDS = "last_run_seconds"
+        private const val KEY_LAST_WALK_SECONDS = "last_walk_seconds"
+        private const val KEY_LAST_CYCLES = "last_cycles"
+        private const val PAGE_CALENDAR = 0
+        private const val PAGE_WORKOUT = 1
+        private const val PAGE_TOTALS = 2
     }
+
+    private data class WorkoutSummary(
+        val totalWorkoutSeconds: Int,
+        val runSeconds: Int,
+        val walkSeconds: Int,
+        val cycles: Int
+    )
 }
