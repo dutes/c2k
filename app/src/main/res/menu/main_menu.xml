@@ -12,4 +12,9 @@
         android:title="Use Dynamic Color"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_add_last_workout_to_calendar"
+        android:title="@string/menu_add_last_workout_to_calendar"
+        app:showAsAction="never" />
+
 </menu>

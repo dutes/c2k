@@ -341,6 +341,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         val runSeconds = runSegments.firstOrNull()?.durationSeconds ?: 0
         val walkSeconds = walkSegments.firstOrNull()?.durationSeconds ?: 0
         val cycles = runSegments.size
+        val warmupSeconds = segments.filter { it.type == SegmentType.WARMUP }.sumOf { it.durationSeconds }
+        val cooldownSeconds = segments.filter { it.type == SegmentType.COOLDOWN }.sumOf { it.durationSeconds }
 
         val intent = Intent(ACTION_WORKOUT_FINISHED)
             .setPackage(packageName)
@@ -348,6 +350,10 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             .putExtra(EXTRA_RUN_SECONDS, runSeconds)
             .putExtra(EXTRA_WALK_SECONDS, walkSeconds)
             .putExtra(EXTRA_CYCLE_COUNT, cycles)
+            .putExtra(EXTRA_INCLUDE_WARMUP, warmupSeconds > 0)
+            .putExtra(EXTRA_INCLUDE_COOLDOWN, cooldownSeconds > 0)
+            .putExtra(EXTRA_WARMUP_SECONDS, warmupSeconds)
+            .putExtra(EXTRA_COOLDOWN_SECONDS, cooldownSeconds)
         sendBroadcast(intent)
     }
 
@@ -800,6 +806,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val EXTRA_CYCLE_COUNT = "extra_cycle_count"
         const val EXTRA_INCLUDE_WARMUP = "extra_include_warmup"
         const val EXTRA_INCLUDE_COOLDOWN = "extra_include_cooldown"
+        const val EXTRA_WARMUP_SECONDS = "extra_warmup_seconds"
+        const val EXTRA_COOLDOWN_SECONDS = "extra_cooldown_seconds"
         const val EXTRA_INTERVAL_TITLE = "extra_interval_title"
         const val EXTRA_INTERVAL_ELAPSED_SECONDS = "extra_interval_elapsed_seconds"
         const val EXTRA_INTERVAL_REMAINING_SECONDS = "extra_interval_remaining_seconds"
