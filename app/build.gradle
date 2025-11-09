@@ -35,6 +35,15 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    sourceSets {
+        main {
+            // Prevent accidental use of reserved resource names like layout/new.xml
+            res {
+                exclude 'layout/new.xml'
+            }
+        }
+    }
 }
 
 dependencies {
