@@ -8,3 +8,6 @@
 .externalNativeBuild/
 .cxx/
 app/build/
+# Android Studio may create a layout/new.xml stub which is invalid because "new"
+# is a reserved resource name. Ignore it to avoid build failures on Windows.
+app/src/main/res/layout/new.xml
