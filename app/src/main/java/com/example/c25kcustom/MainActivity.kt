@@ -1,5 +1,6 @@
 package com.example.c25kcustom
 
+import com.example.c25kcustom.R
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
