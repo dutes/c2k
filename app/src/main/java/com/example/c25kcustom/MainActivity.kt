@@ -614,7 +614,7 @@ class MainActivity : AppCompatActivity() {
             .putExtra(CalendarContract.Events.DESCRIPTION, description)
         try {
             startActivity(intent)
-        } catch (error: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, R.string.toast_calendar_unavailable, Toast.LENGTH_SHORT).show()
         }
     }
@@ -816,11 +816,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private inner class WorkoutViewHolder(val binding: PageWorkoutBinding) : RecyclerView.ViewHolder(binding.root)
+    private inner class WorkoutViewHolder(binding: PageWorkoutBinding) : RecyclerView.ViewHolder(binding.root)
 
-    private inner class TotalsViewHolder(val binding: PageTotalsBinding) : RecyclerView.ViewHolder(binding.root)
+    private inner class TotalsViewHolder(binding: PageTotalsBinding) : RecyclerView.ViewHolder(binding.root)
 
-    private inner class CalendarViewHolder(val binding: PageCalendarBinding) : RecyclerView.ViewHolder(binding.root)
+    private inner class CalendarViewHolder(binding: PageCalendarBinding) : RecyclerView.ViewHolder(binding.root)
 
     private inner class CalendarDayAdapter(
         private val onDaySelected: (CalendarCell) -> Unit
