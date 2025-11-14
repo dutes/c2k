@@ -52,4 +52,12 @@
         android:paddingBottom="8dp"
         tools:listitem="@layout/item_calendar_day" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/uploadMonthButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/calendar_upload_month"
+        app:icon="@android:drawable/ic_menu_upload" />
+
 </LinearLayout>

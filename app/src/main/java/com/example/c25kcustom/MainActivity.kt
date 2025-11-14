@@ -313,6 +313,7 @@ class MainActivity : AppCompatActivity() {
             currentMonth = currentMonth.plusMonths(1)
             renderCalendar()
         }
+        binding.uploadMonthButton.setOnClickListener { uploadCurrentMonth() }
         renderCalendar()
     }
 
@@ -497,7 +498,6 @@ class MainActivity : AppCompatActivity() {
         updatePauseButton()
         showState(UiState.SETUP)
         binding.viewPager.setCurrentItem(PAGE_WORKOUT, true)
-        showCalendarDialog(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
     }
 
     private fun handleWorkoutStopped() {
@@ -593,22 +593,6 @@ class MainActivity : AppCompatActivity() {
         val minutes = text?.toDoubleOrNull()
         if (minutes == null || minutes <= 0) return null
         return (minutes * 60.0).roundToInt()
-    }
-
-    private fun showCalendarDialog(
-        totalWorkoutSeconds: Int,
-        runSeconds: Int,
-        walkSeconds: Int,
-        cycles: Int
-    ) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.dialog_calendar_title)
-            .setMessage(R.string.dialog_calendar_message)
-            .setPositiveButton(R.string.dialog_calendar_positive) { _, _ ->
-                launchCalendarIntent(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
-            }
-            .setNegativeButton(R.string.dialog_calendar_negative, null)
-            .show()
     }
 
     private fun launchCalendarIntent(
@@ -755,33 +739,50 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.calendar_no_workouts, Toast.LENGTH_SHORT).show()
             return
         }
-        val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
-        val message = buildString {
-            append(date.format(formatter))
-            appendLine()
-            appendLine()
-            cell.workouts.forEachIndexed { index, workout ->
-                appendLine(getString(R.string.calendar_detail_total, formatDurationLong(workout.totalSeconds)))
-                appendLine(getString(R.string.calendar_detail_cycles, workout.cycles))
-                appendLine(getString(R.string.calendar_detail_run, formatSeconds(workout.runIntervalSeconds)))
-                appendLine(getString(R.string.calendar_detail_walk, formatSeconds(workout.walkIntervalSeconds)))
-                if (workout.includeWarmup || workout.includeCooldown) {
-                    val warmup = if (workout.includeWarmup) formatDurationLong(workout.warmupSeconds) else formatDurationLong(0)
-                    val cooldown = if (workout.includeCooldown) formatDurationLong(workout.cooldownSeconds) else formatDurationLong(0)
-                    appendLine(getString(R.string.calendar_detail_warmup_cooldown, warmup, cooldown))
-                } else {
-                    appendLine(getString(R.string.calendar_detail_no_warmup_cooldown))
-                }
-                if (index < cell.workouts.size - 1) {
-                    appendLine()
-                }
-            }
+
+        val items = cell.workouts.map { workout ->
+            getString(
+                R.string.calendar_detail_item_format,
+                formatDurationLong(workout.totalSeconds),
+                workout.cycles
+            )
         }
+
         MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.calendar_dialog_title)
-            .setMessage(message)
+            .setTitle(date.format(DateTimeFormatter.ofPattern("MMM d, yyyy")))
+            .setItems(items.toTypedArray()) { _, index ->
+                val workout = cell.workouts[index]
+                launchCalendarIntent(
+                    workout.totalSeconds,
+                    workout.runIntervalSeconds,
+                    workout.walkIntervalSeconds,
+                    workout.cycles
+                )
+            }
             .setPositiveButton(android.R.string.ok, null)
             .show()
+    }
+
+    private fun uploadCurrentMonth() {
+        val zone = ZoneId.systemDefault()
+        val workoutsThisMonth = latestWorkouts.filter {
+            val workoutDate = Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate()
+            workoutDate.year == currentMonth.year && workoutDate.month == currentMonth.month
+        }
+
+        if (workoutsThisMonth.isEmpty()) {
+            Toast.makeText(this, R.string.toast_no_workouts_to_export, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        workoutsThisMonth.forEach { workout ->
+            launchCalendarIntent(
+                workout.totalSeconds,
+                workout.runIntervalSeconds,
+                workout.walkIntervalSeconds,
+                workout.cycles
+            )
+        }
     }
 
     private inner class MainPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
