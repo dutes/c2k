@@ -275,7 +275,7 @@ class MainActivity : AppCompatActivity() {
         binding.selectPlaylistButton.setOnClickListener { handleSelectPlaylistClick() }
         binding.startButton.setOnClickListener {
             if (validateInputs()) {
-                startIntervalService()
+                checkForPartialCycles()
             }
         }
         binding.stopButton.setOnClickListener {
@@ -376,14 +376,60 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    private fun startIntervalService() {
+    private fun checkForPartialCycles() {
+        val binding = workoutBinding ?: return
+        val runSeconds = parseIntervalSeconds(binding.runMinutesInput) ?: 0
+        val walkSeconds = parseIntervalSeconds(binding.walkMinutesInput) ?: 0
+        val totalMinutes = binding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val cycles = binding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        val includeWarmup = binding.warmupSwitch.isChecked
+        val includeCooldown = binding.cooldownSwitch.isChecked
+
+        // If user specified cycles explicitly, or if inputs are invalid/zero, just start (service handles it)
+        if (cycles > 0 || totalMinutes <= 0 || runSeconds <= 0 || walkSeconds <= 0) {
+            startIntervalService()
+            return
+        }
+
+        val warmupSeconds = if (includeWarmup) IntervalService.WARMUP_SECONDS else 0
+        val cooldownSeconds = if (includeCooldown) IntervalService.COOLDOWN_SECONDS else 0
+        val totalSeconds = totalMinutes * 60
+        val availableForIntervals = totalSeconds - warmupSeconds - cooldownSeconds
+        val cycleDuration = runSeconds + walkSeconds
+
+        if (availableForIntervals <= 0) {
+             startIntervalService()
+             return
+        }
+
+        if (availableForIntervals % cycleDuration != 0) {
+            val roundedCycles = availableForIntervals / cycleDuration
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.dialog_partial_cycles_title)
+                .setMessage(getString(R.string.dialog_partial_cycles_message, roundedCycles))
+                .setPositiveButton(R.string.action_continue) { _, _ ->
+                    startIntervalService(forceCycles = roundedCycles)
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            startIntervalService()
+        }
+    }
+
+    private fun startIntervalService(forceCycles: Int? = null) {
         val pageBinding = workoutBinding ?: return
         val runSeconds = parseIntervalSeconds(pageBinding.runMinutesInput) ?: 0
         val walkSeconds = parseIntervalSeconds(pageBinding.walkMinutesInput) ?: 0
-        val totalMinutes = pageBinding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        val cycles = pageBinding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        var totalMinutes = pageBinding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        var cycles = pageBinding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
         val includeWarmup = pageBinding.warmupSwitch.isChecked
         val includeCooldown = pageBinding.cooldownSwitch.isChecked
+
+        if (forceCycles != null) {
+            cycles = forceCycles
+            totalMinutes = 0 // Disable total time mode to enforce strict cycle count
+        }
 
         val intent = Intent(this, IntervalService::class.java).apply {
             action = IntervalService.ACTION_START

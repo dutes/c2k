@@ -102,4 +102,7 @@
         <item quantity="one">%d second</item>
         <item quantity="other">%d seconds</item>
     </plurals>
+    <string name="dialog_partial_cycles_title">Total time adjustment</string>
+    <string name="dialog_partial_cycles_message">The total time entered doesn\'t divide equally by your interval durations. The workout will be rounded down to %1$d full cycles.</string>
+    <string name="action_continue">Continue</string>
 </resources>

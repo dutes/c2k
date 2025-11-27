@@ -808,6 +808,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         const val EXTRA_INCLUDE_COOLDOWN = "extra_include_cooldown"
         const val EXTRA_WARMUP_SECONDS = "extra_warmup_seconds"
         const val EXTRA_COOLDOWN_SECONDS = "extra_cooldown_seconds"
+
         const val EXTRA_INTERVAL_TITLE = "extra_interval_title"
         const val EXTRA_INTERVAL_ELAPSED_SECONDS = "extra_interval_elapsed_seconds"
         const val EXTRA_INTERVAL_REMAINING_SECONDS = "extra_interval_remaining_seconds"
@@ -823,5 +824,8 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         private const val REQUEST_PAUSE = 2002
         private const val REQUEST_RESUME = 2003
         private const val REQUEST_STOP = 2004
+
+        const val WARMUP_SECONDS = 3 * 60
+        const val COOLDOWN_SECONDS = 3 * 60
     }
 }
