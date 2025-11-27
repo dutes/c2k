@@ -26,6 +26,11 @@ import java.util.Locale
 import java.util.UUID
 import kotlin.collections.ArrayDeque
 import kotlin.math.min
+import com.example.c25kcustom.data.WorkoutEntity
+import com.example.c25kcustom.data.WorkoutRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class IntervalService : Service(), TextToSpeech.OnInitListener {
 
@@ -260,9 +265,49 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
             showActions = false
         )
         notificationManager.notify(NOTIFICATION_ID, completedNotification)
+        
+        saveWorkout()
         sendWorkoutFinishedBroadcast()
         // Do not stop the service here. Wait for the activity to connect.
     }
+
+    private fun saveWorkout() {
+        val runSegments = segments.filter { it.type == SegmentType.RUN }
+        val walkSegments = segments.filter { it.type == SegmentType.WALK }
+        val runSeconds = runSegments.firstOrNull()?.durationSeconds ?: 0
+        val walkSeconds = walkSegments.firstOrNull()?.durationSeconds ?: 0
+        val cycles = runSegments.size
+        val warmupSeconds = segments.filter { it.type == SegmentType.WARMUP }.sumOf { it.durationSeconds }
+        val cooldownSeconds = segments.filter { it.type == SegmentType.COOLDOWN }.sumOf { it.durationSeconds }
+        val includeWarmup = warmupSeconds > 0
+        val includeCooldown = cooldownSeconds > 0
+
+        if (totalWorkoutSeconds > 0 && runSeconds > 0 && walkSeconds > 0) {
+            val entity = WorkoutEntity(
+                timestamp = System.currentTimeMillis(),
+                totalSeconds = totalWorkoutSeconds,
+                runIntervalSeconds = runSeconds,
+                walkIntervalSeconds = walkSeconds,
+                cycles = cycles,
+                includeWarmup = includeWarmup,
+                includeCooldown = includeCooldown,
+                warmupSeconds = warmupSeconds,
+                cooldownSeconds = cooldownSeconds
+            )
+
+            CoroutineScope(Dispatchers.IO).launch {
+                WorkoutRepository.getInstance(applicationContext).recordWorkout(entity)
+            }
+
+            val prefs = getSharedPreferences("workout_history", MODE_PRIVATE)
+            prefs.edit().apply {
+                putInt("last_total_seconds", totalWorkoutSeconds)
+                putInt("last_run_seconds", runSeconds)
+                putInt("last_walk_seconds", walkSeconds)
+                putInt("last_cycles", cycles)
+                apply()
+            }
+        }
 
     private fun broadcastProgress() {
         val segment = segments.getOrNull(currentIndex)

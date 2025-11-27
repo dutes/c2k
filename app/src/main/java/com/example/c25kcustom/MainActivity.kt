@@ -517,34 +517,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleWorkoutFinished(intent: Intent) {
-        val totalWorkoutSeconds = intent.getIntExtra(IntervalService.EXTRA_TOTAL_WORKOUT_SECONDS, 0)
-        val runSeconds = intent.getIntExtra(IntervalService.EXTRA_RUN_SECONDS, 0)
-        val walkSeconds = intent.getIntExtra(IntervalService.EXTRA_WALK_SECONDS, 0)
-        val cycles = intent.getIntExtra(IntervalService.EXTRA_CYCLE_COUNT, 0)
-        val includeWarmup = intent.getBooleanExtra(IntervalService.EXTRA_INCLUDE_WARMUP, false)
-        val includeCooldown = intent.getBooleanExtra(IntervalService.EXTRA_INCLUDE_COOLDOWN, false)
-        val warmupSeconds = intent.getIntExtra(IntervalService.EXTRA_WARMUP_SECONDS, 0)
-        val cooldownSeconds = intent.getIntExtra(IntervalService.EXTRA_COOLDOWN_SECONDS, 0)
-
-        saveLastWorkoutSummary(totalWorkoutSeconds, runSeconds, walkSeconds, cycles)
+        // Saving is now handled in IntervalService
         invalidateOptionsMenu()
-
-        lifecycleScope.launch {
-            if (totalWorkoutSeconds > 0 && runSeconds > 0 && walkSeconds > 0) {
-                val entity = WorkoutEntity(
-                    timestamp = System.currentTimeMillis(),
-                    totalSeconds = totalWorkoutSeconds,
-                    runIntervalSeconds = runSeconds,
-                    walkIntervalSeconds = walkSeconds,
-                    cycles = cycles,
-                    includeWarmup = includeWarmup,
-                    includeCooldown = includeCooldown,
-                    warmupSeconds = warmupSeconds,
-                    cooldownSeconds = cooldownSeconds
-                )
-                repository.recordWorkout(entity)
-            }
-        }
 
         isWorkoutPaused = false
         updatePauseButton()
@@ -671,20 +645,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveLastWorkoutSummary(
-        totalWorkoutSeconds: Int,
-        runSeconds: Int,
-        walkSeconds: Int,
-        cycles: Int
-    ) {
-        if (totalWorkoutSeconds <= 0) return
-        workoutHistoryPrefs.edit {
-            putInt(KEY_LAST_TOTAL_SECONDS, totalWorkoutSeconds)
-            putInt(KEY_LAST_RUN_SECONDS, runSeconds)
-            putInt(KEY_LAST_WALK_SECONDS, walkSeconds)
-            putInt(KEY_LAST_CYCLES, cycles)
-        }
-    }
+
 
     private fun getLastWorkoutSummary(): WorkoutSummary? {
         val totalSeconds = workoutHistoryPrefs.getInt(KEY_LAST_TOTAL_SECONDS, -1)
