@@ -394,16 +394,21 @@ class MainActivity : AppCompatActivity() {
         val warmupSeconds = if (includeWarmup) IntervalService.WARMUP_SECONDS else 0
         val cooldownSeconds = if (includeCooldown) IntervalService.COOLDOWN_SECONDS else 0
         val totalSeconds = totalMinutes * 60
-        val availableForIntervals = totalSeconds - warmupSeconds - cooldownSeconds
+        val availableForIntervals = totalSeconds
         val cycleDuration = runSeconds + walkSeconds
 
-        if (availableForIntervals <= 0) {
-             startIntervalService()
-             return
-        }
+        if (availableForIntervals % cycleDuration != 0 || availableForIntervals < cycleDuration) {
+            val roundedCycles = if (availableForIntervals < 0) 0 else availableForIntervals / cycleDuration
+            
+            if (roundedCycles < 1) {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.dialog_partial_cycles_title)
+                    .setMessage(R.string.dialog_error_insufficient_time)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                return
+            }
 
-        if (availableForIntervals % cycleDuration != 0) {
-            val roundedCycles = availableForIntervals / cycleDuration
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.dialog_partial_cycles_title)
                 .setMessage(getString(R.string.dialog_partial_cycles_message, roundedCycles))
@@ -422,7 +427,7 @@ class MainActivity : AppCompatActivity() {
         val runSeconds = parseIntervalSeconds(pageBinding.runMinutesInput) ?: 0
         val walkSeconds = parseIntervalSeconds(pageBinding.walkMinutesInput) ?: 0
         var totalMinutes = pageBinding.totalMinutesInput.editText?.text?.toString()?.toIntOrNull() ?: 0
-        var cycles = pageBinding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: 0
+        var cycles = pageBinding.cycleCountInput.editText?.text?.toString()?.toIntOrNull() ?: -1
         val includeWarmup = pageBinding.warmupSwitch.isChecked
         val includeCooldown = pageBinding.cooldownSwitch.isChecked
 

@@ -104,5 +104,7 @@
     </plurals>
     <string name="dialog_partial_cycles_title">Total time adjustment</string>
     <string name="dialog_partial_cycles_message">The total time entered doesn\'t divide equally by your interval durations. The workout will be rounded down to %1$d full cycles.</string>
+    <string name="dialog_partial_cycles_message_zero">The remaining time after warmup/cooldown is not enough for a single cycle. The workout will consist only of warmup and/or cool-down.</string>
+    <string name="dialog_error_insufficient_time">The total time entered is not enough for even one full cycle after accounting for warmup and cool-down. Please increase the total time or adjust your intervals.</string>
     <string name="action_continue">Continue</string>
 </resources>

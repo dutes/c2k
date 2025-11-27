@@ -127,7 +127,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         val runSeconds = intent.getIntExtra(EXTRA_RUN_SECONDS, 0)
         val walkSeconds = intent.getIntExtra(EXTRA_WALK_SECONDS, 0)
         val totalMinutes = intent.getIntExtra(EXTRA_TOTAL_MINUTES, 0)
-        val cycleCount = intent.getIntExtra(EXTRA_CYCLE_COUNT, 0)
+        val cycleCount = intent.getIntExtra(EXTRA_CYCLE_COUNT, -1)
         val includeWarmup = intent.getBooleanExtra(EXTRA_INCLUDE_WARMUP, false)
         val includeCooldown = intent.getBooleanExtra(EXTRA_INCLUDE_COOLDOWN, false)
 
@@ -389,7 +389,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
         val baseCycleDuration = runSeconds + walkSeconds
 
         when {
-            cycleCount > 0 -> {
+            cycleCount >= 0 -> {
                 repeat(cycleCount) {
                     workoutSegments.add(
                         IntervalSegment(
@@ -416,7 +416,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                 }
             }
             totalMinutes > 0 && baseCycleDuration > 0 -> {
-                var remaining = totalMinutes * 60 - warmupSeconds - cooldownSeconds
+                var remaining = totalMinutes * 60
                 if (remaining < 0) remaining = 0
                 while (remaining > 0) {
                     val runDuration = min(runSeconds, remaining)
