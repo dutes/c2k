@@ -308,6 +308,7 @@ class IntervalService : Service(), TextToSpeech.OnInitListener {
                 apply()
             }
         }
+    }
 
     private fun broadcastProgress() {
         val segment = segments.getOrNull(currentIndex)
