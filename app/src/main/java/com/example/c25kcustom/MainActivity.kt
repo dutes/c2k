@@ -361,14 +361,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun validateInterval(input: TextInputLayout): Boolean {
         val text = input.editText?.text?.toString()?.trim()
-        val minutes = text?.toDoubleOrNull()
-        if (minutes == null || minutes <= 0) {
+        val seconds = text?.toIntOrNull()
+        if (seconds == null || seconds <= 0) {
             input.error = getString(R.string.error_positive_number)
-            return false
-        }
-
-        if ((minutes * 2.0).rem(1.0) != 0.0) {
-            input.error = getString(R.string.error_invalid_increment)
             return false
         }
 
@@ -616,9 +611,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun parseIntervalSeconds(input: TextInputLayout): Int? {
         val text = input.editText?.text?.toString()?.trim()
-        val minutes = text?.toDoubleOrNull()
-        if (minutes == null || minutes <= 0) return null
-        return (minutes * 60.0).roundToInt()
+        val seconds = text?.toIntOrNull()
+        if (seconds == null || seconds <= 0) return null
+        return seconds
     }
 
     private fun launchCalendarIntent(
