@@ -19,6 +19,9 @@ I built this for my wife. The Couch to 5K apps she tried locked her into their o
 - Foreground service with a persistent notification offering pause, resume, and stop actions.
 - Text-to-Speech prompts using the device locale while respectfully ducking other audio playback.
 - Works when the device is locked, and exposes controls directly in the notification shade.
+- Choose a YouTube Music playlist for each workout, with previous, play/pause and next controls on the workout screen.
+- A month-by-month calendar of your workouts, with a summary for any day, and the option to add a finished workout to your phone's calendar app.
+- Lifetime totals: completed workouts, run and walk time, average cycles per workout and active minutes. You can export your workout history to share it.
 
 ## Getting Started
 1. Open the project in Android Studio Iguana or newer.
