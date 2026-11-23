@@ -2,9 +2,11 @@
 
 C25K Custom Coach is a customizable Couch-to-5K training companion. Set your preferred run and walk intervals, define the total workout length or number of cycles, and choose optional warm-up and cool-down segments. The app keeps you on track with Material 3 UI controls, Text-to-Speech audio cues that duck other media, and a resilient foreground service that stays active even when the screen is off.
 
-<img src="mockups/in_progress_mockup.svg" alt="Design mockup of the workout-in-progress screen" width="280">
-
-*Design mockup of the workout screen.*
+<p>
+  <img src="docs/screenshots/setup.png" alt="Setting up a workout: run and walk intervals, total time, and warm-up and cool-down walks" width="240">
+  <img src="docs/screenshots/workout.png" alt="A workout in progress: warm-up, 1:59 left, cycle 1 of 3, with music controls" width="240">
+  <img src="docs/screenshots/notification.png" alt="Pause and Stop workout controls in the notification during a workout" width="240">
+</p>
 
 ## Why I built it
 
